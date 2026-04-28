@@ -71,6 +71,7 @@ export const ProfileScreen = ({
 
   const handleSave = () => {
     onSaveProfile({
+      id: draftProfile.id,
       fullName: draftProfile.fullName.trim(),
       phone: draftProfile.phone.trim(),
       accountType: draftProfile.accountType,

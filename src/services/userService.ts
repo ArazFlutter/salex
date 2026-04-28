@@ -93,50 +93,65 @@ export async function getOrCreateUser(phone: string): Promise<User> {
   return mapUserRow(result.rows[0]);
 }
 
-export async function getCurrentUser(): Promise<User> {
+export async function getCurrentUser(userId: string): Promise<User> {
   const result = await query<UserRow>(
-    `SELECT u.id, u.full_name, u.phone, u.account_type, u.active_plan
-     FROM otp_sessions os
-     JOIN users u ON u.id = os.user_id
-     WHERE os.is_current = TRUE
-       AND os.verified_at IS NOT NULL
-     ORDER BY os.verified_at DESC, os.id DESC
-     LIMIT 1`,
-    [],
+    `SELECT id, full_name, phone, account_type, active_plan
+     FROM users
+     WHERE id = $1`,
+    [userId],
   );
 
   if (result.rowCount === 0) {
-    throw new AppError('User is not authenticated', 401);
+    throw new AppError('User not found', 401);
   }
 
   return mapUserRow(result.rows[0]);
 }
 
-export async function updateCurrentUserPlan(activePlan: ActivePlan): Promise<User> {
-  const currentUser = await getCurrentUser();
+export async function updateUserPlan(userId: string, activePlan: ActivePlan): Promise<User> {
   const result = await query<UserRow>(
     `UPDATE users
      SET active_plan = $1,
          updated_at = NOW()
      WHERE id = $2
      RETURNING id, full_name, phone, account_type, active_plan`,
-    [activePlan, currentUser.id],
+    [activePlan, userId],
   );
+
+  if (result.rowCount === 0) {
+    throw new AppError('User not found', 404);
+  }
 
   return mapUserRow(result.rows[0]);
 }
 
-export async function connectCurrentUserPlatform(platform: PlatformId): Promise<User> {
-  const currentUser = await getCurrentUser();
-
+export async function connectUserPlatform(userId: string, platform: PlatformId): Promise<User> {
   await query(
     `INSERT INTO platform_connections (user_id, platform_id, connected)
      VALUES ($1, $2, TRUE)
      ON CONFLICT (user_id, platform_id) DO UPDATE
      SET connected = TRUE,
          connected_at = NOW()`,
-    [currentUser.id, platform],
+    [userId, platform],
   );
 
-  return getCurrentUser();
+  return getCurrentUser(userId);
+}
+
+export async function findUserByTelegramId(telegramId: number): Promise<User | undefined> {
+  const result = await query<UserRow>(
+    `SELECT id, full_name, phone, account_type, active_plan
+     FROM users WHERE telegram_id = $1`,
+    [telegramId],
+  );
+
+  return result.rows[0] ? mapUserRow(result.rows[0]) : undefined;
+}
+
+export async function linkTelegramId(userId: string, telegramId: number): Promise<void> {
+  await query(
+    `UPDATE users SET telegram_id = $1, updated_at = NOW() WHERE id = $2`,
+    [telegramId, userId],
+  );
+}
 }

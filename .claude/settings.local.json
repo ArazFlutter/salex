@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(grep -c *)",
+      "Bash(cd \"c:\\\\\\\\Users\\\\\\\\user\\\\\\\\Downloads\\\\\\\\salex-main\")",
+      "Bash(git rebase *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\user\\Downloads\\salex-main"
+    ]
+  }
+}

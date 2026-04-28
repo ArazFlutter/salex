@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAuth } from '../middleware/auth';
 import {
   confirmPaymentController,
   createPaymentController,
@@ -7,8 +8,8 @@ import {
 
 const paymentsRouter = Router();
 
-paymentsRouter.post('/create', createPaymentController);
-paymentsRouter.post('/confirm', confirmPaymentController);
-paymentsRouter.get('/:id', getPaymentOrderController);
+paymentsRouter.post('/create', requireAuth, createPaymentController);
+paymentsRouter.post('/confirm', requireAuth, confirmPaymentController);
+paymentsRouter.get('/:id', requireAuth, getPaymentOrderController);
 
 export { paymentsRouter };

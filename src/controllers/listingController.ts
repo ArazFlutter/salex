@@ -4,19 +4,23 @@ import { getCurrentUser } from '../services/userService';
 import { AppError } from '../utils/AppError';
 
 export async function createListingController(request: Request, response: Response) {
-  response.status(201).json(await createListing(request.body ?? {}));
+  const userId = (request as any).authUser.userId;
+  response.status(201).json(await createListing(userId, request.body ?? {}));
 }
 
-export async function getListingsController(_request: Request, response: Response) {
-  response.status(200).json(await getListings());
+export async function getListingsController(request: Request, response: Response) {
+  const userId = (request as any).authUser.userId;
+  response.status(200).json(await getListings(userId));
 }
 
 export async function getListingByIdController(request: Request, response: Response) {
-  response.status(200).json(await getListingById(String(request.params.id ?? '')));
+  const userId = (request as any).authUser.userId;
+  response.status(200).json(await getListingById(userId, String(request.params.id ?? '')));
 }
 
 export async function uploadListingImageController(request: Request, response: Response) {
-  await getCurrentUser();
+  const userId = (request as any).authUser.userId;
+  await getCurrentUser(userId);
   if (!request.file) {
     throw new AppError('Image file is required (field name: image)', 400);
   }

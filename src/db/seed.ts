@@ -17,7 +17,7 @@ const seedPlatform = {
 const seedListing = {
   id: 'dev-listing-salex-demo',
   title: 'iPhone 13 128GB',
-  category: 'electronics',
+  category: 'Elektronika → Telefonlar və aksesuarlar → Smartfonlar → Apple → iPhone 13 → Yeni',
   price: 1450,
   city: 'Baku',
   description: 'Local development seed listing for PostgreSQL smoke testing.',

@@ -13,10 +13,17 @@ export async function verifyOtpController(request: Request, response: Response) 
   const code = String(request.body?.code ?? '');
   const result = await verifyOtp(phone, code);
 
-  response.status(200).json(result);
+  response.cookie('salex_token', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  response.status(200).json({ success: true, user: result.user });
 }
 
 export async function logoutController(_request: Request, response: Response) {
-  await clearGlobalAuthSession();
+  response.clearCookie('salex_token');
   response.status(200).json({ success: true });
 }

@@ -43,9 +43,10 @@ npm run server:dev
 **Terminal 2 — Worker (consumes publish / recovery queues):**
 
 ```bash
-npm run worker:dev
+ENABLE_WORKER_IN_SERVER=false npm run worker:dev
 ```
 
+> **Note:** Set `ENABLE_WORKER_IN_SERVER=false` in `.env` when running the worker in a separate process to avoid duplicate handler registration.
 **Terminal 3 — Next.js:**
 
 ```bash

@@ -2,6 +2,7 @@ import { AppError } from '../utils/AppError';
 import { log } from '../utils/logger';
 import { query, withTransaction } from '../db/pool';
 import { getOrCreateUser } from './userService';
+import { signToken } from '../middleware/auth';
 
 type OtpSessionRow = {
   id: number;
@@ -33,12 +34,21 @@ export async function sendOtp(phone: string) {
   const expiresAt = Date.now() + OTP_TTL_MS;
 
   await query(
+    `UPDATE otp_sessions SET is_current = FALSE WHERE phone = $1 AND verified_at IS NULL`,
+    [normalizedPhone],
+  );
+
+  await query(
     `INSERT INTO otp_sessions (phone, code, expires_at, attempts, is_current)
      VALUES ($1, $2, $3, 0, FALSE)`,
     [normalizedPhone, code, new Date(expiresAt)],
   );
 
-  log.info('auth.otp.sent', { phone: normalizedPhone, code });
+  log.info('auth.otp.sent', { phone: normalizedPhone });
+
+  if (process.env.NODE_ENV === 'development') {
+    log.warn('auth.otp.dev_only', { phone: normalizedPhone, code });
+  }
 
   return {
     success: true,
@@ -109,9 +119,12 @@ export async function verifyOtp(phone: string, code: string) {
     );
   });
 
+  const token = signToken({ userId: user.id, phone: user.phone });
+
   return {
     success: true,
     user,
+    token,
   };
 }
 

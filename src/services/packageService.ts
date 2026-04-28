@@ -1,7 +1,7 @@
 import { AppError } from '../utils/AppError';
 import { getPlanEntitlements, PAID_PLAN_PRICES_AZN, type PaidPlanId } from '../config/packagePlans';
 import { getPlatformDisplayName, type PlatformId } from '../utils/platforms';
-import { type ActivePlan, getCurrentUser, updateCurrentUserPlan } from './userService';
+import { type ActivePlan, getCurrentUser, updateUserPlan } from './userService';
 
 export type PlanPlatformRef = { id: PlatformId; name: string };
 
@@ -55,8 +55,8 @@ export function getPackageCatalog() {
   return { success: true as const, plans };
 }
 
-export async function getCurrentPackage() {
-  const user = await getCurrentUser();
+export async function getCurrentPackage(userId: string) {
+  const user = await getCurrentUser(userId);
 
   return {
     success: true as const,
@@ -64,7 +64,7 @@ export async function getCurrentPackage() {
   };
 }
 
-export async function selectPackage(plan: string) {
+export async function selectPackage(userId: string, plan: string) {
   if (!isActivePlan(plan)) {
     throw new AppError('Invalid package selected', 400);
   }
@@ -76,7 +76,7 @@ export async function selectPackage(plan: string) {
     );
   }
 
-  const user = await updateCurrentUserPlan('basic');
+  const user = await updateUserPlan(userId, 'basic');
 
   return {
     success: true as const,

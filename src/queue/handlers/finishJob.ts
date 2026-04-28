@@ -8,20 +8,22 @@ export async function maybeFinishJob(publishJobId: string): Promise<void> {
       [publishJobId],
     );
 
-    const pending = await client.query<{ count: number }>(
+    const stillPending = await client.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count
        FROM publish_job_platforms
        WHERE publish_job_id = $1
-         AND status IN ('waiting', 'processing')`,
+         AND status IN ('waiting', 'processing', 'published_pending_link')`,
       [publishJobId],
     );
 
-    if (pending.rows[0].count > 0) return;
+    if (stillPending.rows[0].count > 0) return;
 
     const platforms = await client.query<{ status: string }>(
       'SELECT status FROM publish_job_platforms WHERE publish_job_id = $1',
       [publishJobId],
     );
+
+    if (platforms.rows.length === 0) return;
 
     const statusCounts: Record<string, number> = {};
     for (const row of platforms.rows) {
@@ -29,6 +31,12 @@ export async function maybeFinishJob(publishJobId: string): Promise<void> {
     }
 
     const allFailed = platforms.rows.every((row) => row.status === 'failed');
+    const allPublishedPendingLink = platforms.rows.every(
+      (row) => row.status === 'published_pending_link',
+    );
+
+    if (allPublishedPendingLink) return;
+
     const finalStatus = allFailed ? 'failed' : 'success';
 
     await client.query(

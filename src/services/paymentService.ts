@@ -37,12 +37,12 @@ function getAppBaseUrl(): string {
   return raw.replace(/\/$/, '');
 }
 
-export async function createPaymentOrder(plan: string) {
+export async function createPaymentOrder(userId: string, plan: string) {
   if (!isPaidPlan(plan)) {
     throw new AppError('Only premium and premiumPlus require payment', 400);
   }
 
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(userId);
   const amount = PAID_PLAN_PRICES_AZN[plan];
   const id = `payment-${randomUUID()}`;
   const currency = 'AZN';
@@ -69,8 +69,8 @@ export async function createPaymentOrder(plan: string) {
   };
 }
 
-export async function getPaymentOrderById(orderId: string) {
-  const user = await getCurrentUser();
+export async function getPaymentOrderById(userId: string, orderId: string) {
+  const user = await getCurrentUser(userId);
 
   const result = await query<PaymentOrderRow>(
     `SELECT id, user_id, plan, amount, currency, status, created_at, updated_at
@@ -94,12 +94,12 @@ export async function getPaymentOrderById(orderId: string) {
   };
 }
 
-export async function confirmPaymentOrder(orderId: string) {
+export async function confirmPaymentOrder(userId: string, orderId: string) {
   if (!orderId.trim()) {
     throw new AppError('paymentOrderId is required', 400);
   }
 
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(userId);
 
   await withTransaction(async (client) => {
     const locked = await client.query<PaymentOrderRow>(
@@ -137,7 +137,7 @@ export async function confirmPaymentOrder(orderId: string) {
     );
   });
 
-  const refreshed = await getCurrentUser();
+  const refreshed = await getCurrentUser(userId);
   const orderAfter = await query<PaymentOrderRow>(
     `SELECT id, user_id, plan, amount, currency, status, created_at, updated_at
      FROM payment_orders WHERE id = $1`,
@@ -150,4 +150,40 @@ export async function confirmPaymentOrder(orderId: string) {
     user: refreshed,
     package: buildPackageSummary(refreshed.activePlan),
   };
+}
+
+export async function createPaymentOrderForUser(userId: string, plan: string) {
+  if (!isPaidPlan(plan)) {
+    throw new AppError('Invalid plan', 400);
+  }
+
+  const amount = PAID_PLAN_PRICES_AZN[plan];
+  const id = `payment-${randomUUID()}`;
+
+  await query(
+    `INSERT INTO payment_orders (id, user_id, plan, amount, currency, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, 'XTR', 'pending', NOW(), NOW())`,
+    [id, userId, plan, amount],
+  );
+
+  return { id, userId, plan, amount };
+}
+
+export async function confirmPaymentOrderById(orderId: string, userId: string) {
+  await withTransaction(async (client) => {
+    await client.query(
+      `UPDATE payment_orders SET status = 'paid', updated_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [orderId, userId],
+    );
+
+    const planRes = await client.query<{ plan: string }>(
+      `SELECT plan FROM payment_orders WHERE id = $1`,
+      [orderId],
+    );
+
+    await client.query(
+      `UPDATE users SET active_plan = $1, updated_at = NOW() WHERE id = $2`,
+      [planRes.rows[0].plan, userId],
+    );
+  });
 }

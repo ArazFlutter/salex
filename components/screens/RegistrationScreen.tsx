@@ -37,7 +37,7 @@ export const RegistrationScreen = ({ onNavigate, profile, onSaveProfile, onAuthe
     setError('');
     try {
       await sendOtp(phone.trim());
-      onSaveProfile({ fullName: fullName.trim(), phone: phone.trim(), accountType });
+      onSaveProfile({ ...profile, fullName: fullName.trim(), phone: phone.trim(), accountType });
       setStep('otp');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to send OTP');
@@ -56,7 +56,7 @@ export const RegistrationScreen = ({ onNavigate, profile, onSaveProfile, onAuthe
     setError('');
     try {
       const result = await verifyOtp(phone.trim(), code);
-      onSaveProfile({ fullName: fullName.trim(), phone: phone.trim(), accountType });
+      onSaveProfile({ ...profile, fullName: fullName.trim(), phone: phone.trim(), accountType });
       await onAuthenticated?.({
         id: result.user.id,
         phone: result.user.phone,

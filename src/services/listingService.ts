@@ -102,8 +102,8 @@ async function enforceListingLimit(userId: string, listingLimit: number | null) 
   }
 }
 
-export async function createListing(payload: Partial<InternalListingInput>) {
-  const currentUser = await getCurrentUser();
+export async function createListing(userId: string, payload: Partial<InternalListingInput>) {
+  const currentUser = await getCurrentUser(userId);
   const input = normalizeInternalListingInput(payload);
 
   validateCreateInput(input);
@@ -134,8 +134,8 @@ export async function createListing(payload: Partial<InternalListingInput>) {
   };
 }
 
-export async function getListings() {
-  const currentUser = await getCurrentUser();
+export async function getListings(userId: string) {
+  const currentUser = await getCurrentUser(userId);
   const result = await query<ListingRow>(
     `SELECT id, user_id, title, category, price, city, description, images, status, created_at
      FROM listings
@@ -151,8 +151,8 @@ export async function getListings() {
   };
 }
 
-export async function getListingById(id: string) {
-  const listing = await requireCurrentUserListing(id);
+export async function getListingById(userId: string, id: string) {
+  const listing = await requireCurrentUserListing(userId, id);
 
   return {
     success: true,
@@ -160,8 +160,8 @@ export async function getListingById(id: string) {
   };
 }
 
-export async function requireCurrentUserListing(id: string): Promise<InternalListing> {
-  const currentUser = await getCurrentUser();
+export async function requireCurrentUserListing(userId: string, id: string): Promise<InternalListing> {
+  const currentUser = await getCurrentUser(userId);
   const result = await query<ListingRow>(
     `SELECT id, user_id, title, category, price, city, description, images, status, created_at
      FROM listings

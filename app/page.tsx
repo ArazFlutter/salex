@@ -41,7 +41,6 @@ import {
   getPlatforms,
   getListings as apiGetListings,
   createListing as apiCreateListing,
-  createPayment,
   createPublishJob,
   logout as logoutApi,
   selectPackage,
@@ -221,8 +220,9 @@ function SalexApp() {
     try {
       const data = await getPlatforms();
       setPlatformEntries(data.platforms);
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error('[SALex] refreshPlatforms failed', err);
+      // TODO: toast notification əlavə et
     }
   }, []);
 
@@ -232,8 +232,9 @@ function SalexApp() {
       setPlatformEntries(platRes.platforms);
       const connected = platRes.platforms.filter((p) => p.connected).map((p) => p.name);
       setListings(listRes.listings.map((api) => apiListingToLocal(api, connected)));
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error('[SALex] refreshListings failed', err);
+      // TODO: toast notification əlavə et
     }
   }, []);
 
@@ -250,6 +251,7 @@ function SalexApp() {
       }
 
       setProfile({
+        id: user.id,
         fullName: user.fullName,
         phone: user.phone,
         accountType: (user.accountType as UserProfile['accountType']) || 'business',
@@ -336,7 +338,7 @@ function SalexApp() {
 
   const handleAuthenticated = async (user: { id: string; phone: string; fullName: string; activePlan: string }) => {
     setStoredClientUserId(user.id);
-    setProfile((p) => ({ ...p, phone: user.phone, fullName: user.fullName }));
+    setProfile((p) => ({ ...p, id: user.id, phone: user.phone, fullName: user.fullName }));
     setActivePlan((user.activePlan as PlanId) || 'basic');
     await refreshPlatforms();
     try {
@@ -530,13 +532,10 @@ function SalexApp() {
     }
 
     if (plan === 'premium' || plan === 'premiumPlus') {
-      try {
-        const res = await createPayment(plan);
-        setPendingPaymentOrderId(res.paymentOrder.id);
-        setScreen('devPayment');
-      } catch {
-        // stay on packages; errors surface via browser / could add toast later
-      }
+      const currentUser = { id: profile.id };
+      const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'YourSALexBot';
+      const telegramPayUrl = `https://t.me/${botUsername}?start=link_${currentUser.id}`;
+      window.open(telegramPayUrl, '_blank');
       return;
     }
   };

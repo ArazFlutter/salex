@@ -42,10 +42,10 @@ type PublishJobPlatformRow = {
   publish_metadata: Record<string, unknown> | null;
 };
 
-export async function createPublishJob(listingId: string) {
-  const listing = await requireCurrentUserListing(listingId);
-  const connectedPlatforms = await getConnectedPlatforms();
-  const currentUser = await getCurrentUser();
+export async function createPublishJob(userId: string, listingId: string) {
+  const listing = await requireCurrentUserListing(userId, listingId);
+  const connectedPlatforms = await getConnectedPlatforms(userId);
+  const currentUser = await getCurrentUser(userId);
 
   const allowedForPublish = connectedPlatforms.filter((p) =>
     isPlatformAllowedForPlan(currentUser.activePlan, p.id),
@@ -134,8 +134,8 @@ export async function createPublishJob(listingId: string) {
   return { success: true, job };
 }
 
-export async function getPublishJobStatus(id: string) {
-  const currentUser = await getCurrentUser();
+export async function getPublishJobStatus(userId: string, id: string) {
+  const currentUser = await getCurrentUser(userId);
 
   const jobResult = await query<PublishJobRow>(
     `SELECT id, user_id, listing_id, status

@@ -80,6 +80,9 @@ ALTER TABLE publish_job_platforms
 ALTER TABLE publish_job_platforms
   ADD COLUMN IF NOT EXISTS publish_metadata JSONB;
 
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE;
+
 CREATE TABLE IF NOT EXISTS platform_sessions (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

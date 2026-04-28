@@ -41,13 +41,14 @@ export function DevPaymentScreen({ orderId, onCancel, onConfirmed }: DevPaymentS
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (order?.status !== 'paid' || paidSyncedRef.current) {
-      return;
-    }
-    paidSyncedRef.current = true;
-    onConfirmed({ activePlan: order.plan as PlanId, package: undefined });
-  }, [order, onConfirmed]);
+  // Dev auto-confirm flow is intentionally disabled after Telegram Stars migration.
+  // useEffect(() => {
+  //   if (order?.status !== 'paid' || paidSyncedRef.current) {
+  //     return;
+  //   }
+  //   paidSyncedRef.current = true;
+  //   onConfirmed({ activePlan: order.plan as PlanId, package: undefined });
+  // }, [order, onConfirmed]);
 
   const handleConfirm = async () => {
     setConfirmError('');

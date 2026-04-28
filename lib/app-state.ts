@@ -2,6 +2,7 @@ export type PlanId = 'basic' | 'premium' | 'premiumPlus';
 export type AccountType = 'individual' | 'business';
 
 export interface UserProfile {
+  id: string;
   fullName: string;
   phone: string;
   accountType: AccountType;
@@ -81,6 +82,7 @@ export interface SupportRequest {
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
+  id: '',
   fullName: '',
   phone: '',
   accountType: 'business',
