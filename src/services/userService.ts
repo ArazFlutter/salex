@@ -154,4 +154,3 @@ export async function linkTelegramId(userId: string, telegramId: number): Promis
     [telegramId, userId],
   );
 }
-}
