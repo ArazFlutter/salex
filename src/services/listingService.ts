@@ -103,13 +103,27 @@ async function enforceListingLimit(userId: string, listingLimit: number | null) 
 }
 
 export async function createListing(userId: string, payload: Partial<InternalListingInput>) {
-  const currentUser = await getCurrentUser(userId);
+  const user = await getCurrentUser(userId);
+  const limit = getListingLimitForPlan(user.activePlan);
+
+  if (limit !== null) {
+    const countResult = await query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM listings WHERE user_id = $1 AND status != 'deleted'`,
+      [userId],
+    );
+    if (countResult.rows[0].count >= limit) {
+      throw new AppError(
+        `Plan limitinə çatdınız (${limit} elan). Daha çox elan üçün planı yüksəldin.`,
+        403,
+      );
+    }
+  }
+
   const input = normalizeInternalListingInput(payload);
 
   validateCreateInput(input);
-  await enforceListingLimit(currentUser.id, getListingLimitForPlan(currentUser.activePlan));
 
-  const listing = buildInternalListing(currentUser.id, input);
+  const listing = buildInternalListing(user.id, input);
 
   await query(
     `INSERT INTO listings (id, user_id, title, category, price, city, description, images, status, created_at)

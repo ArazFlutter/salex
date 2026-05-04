@@ -42,8 +42,8 @@ export type AuthUser = {
   id: string;
   fullName: string;
   phone: string;
-  accountType: string;
-  activePlan: string;
+  accountType: 'individual' | 'business';
+  activePlan: 'basic' | 'premium' | 'premiumPlus';
   platformConnections: Record<string, boolean>;
 };
 
@@ -84,7 +84,7 @@ export type PlanCatalogEntry = {
 export type PlanCatalogPlans = Record<'basic' | 'premium' | 'premiumPlus', PlanCatalogEntry>;
 
 export type UserPackageInfo = PlanCatalogEntry & {
-  activePlan: string;
+  activePlan: 'basic' | 'premium' | 'premiumPlus';
 };
 
 export function getPackageCatalog() {

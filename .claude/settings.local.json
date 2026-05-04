@@ -5,7 +5,9 @@
       "Bash(npm uninstall *)",
       "Bash(grep -c *)",
       "Bash(cd \"c:\\\\\\\\Users\\\\\\\\user\\\\\\\\Downloads\\\\\\\\salex-main\")",
-      "Bash(git rebase *)"
+      "Bash(git rebase *)",
+      "Bash(git commit *)",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\user\\Downloads\\salex-main"

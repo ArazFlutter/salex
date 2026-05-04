@@ -238,54 +238,53 @@ function SalexApp() {
     }
   }, []);
 
-  const hydrateFromApi = useCallback(async () => {
-    try {
-      const clientUserId = getStoredClientUserId();
-      const userData = await getMe();
-      const user = userData.user;
-
-      // Backend "session" is a single global otp_sessions row, not per-browser cookies.
-      // Only treat GET /me as this client's session when it matches the user id we stored at OTP success.
-      if (!clientUserId || user.id !== clientUserId) {
-        return;
-      }
-
-      setProfile({
-        id: user.id,
-        fullName: user.fullName,
-        phone: user.phone,
-        accountType: (user.accountType as UserProfile['accountType']) || 'business',
-      });
-      setActivePlan((user.activePlan as PlanId) || 'basic');
-
-      const [platformData, pkgData] = await Promise.all([getPlatforms(), getCurrentPackage()]);
-      setPlatformEntries(platformData.platforms);
-      setUserPackage(pkgData.package);
-
-      const connected = platformData.platforms.filter((p) => p.connected).map((p) => p.name);
-
-      const listingData = await apiGetListings();
-      const mapped = listingData.listings.map((api) =>
-        apiListingToLocal(api, connected),
-      );
-      setListings(mapped);
-
-      // Only auto-route from early onboarding screens. Late hydration must not override
-      // in-app navigation (e.g. packages → dev payment after POST /api/payments/create).
-      const bootScreens: Screen[] = ['start', 'language', 'onboarding'];
-      setScreen((prev) => (bootScreens.includes(prev as Screen) ? 'dashboard' : prev));
-    } catch (err) {
-      if (err instanceof ApiError && err.statusCode === 401) {
-        clearStoredClientUserId();
-      }
-      // not authenticated — stay on current screen (typically start)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
-    hydrateFromApi();
-  }, [hydrateFromApi]);
+    const hydrateFromApi = async () => {
+      try {
+        const clientUserId = getStoredClientUserId();
+        const userData = await getMe();
+        const user = userData.user;
+
+        // Backend "session" is a single global otp_sessions row, not per-browser cookies.
+        // Only treat GET /me as this client's session when it matches the user id we stored at OTP success.
+        if (!clientUserId || user.id !== clientUserId) {
+          return;
+        }
+
+        setProfile({
+          id: user.id,
+          fullName: user.fullName,
+          phone: user.phone,
+          accountType: (user.accountType as UserProfile['accountType']) || 'business',
+        });
+        setActivePlan((user.activePlan as PlanId) || 'basic');
+
+        const [platformData, pkgData] = await Promise.all([getPlatforms(), getCurrentPackage()]);
+        setPlatformEntries(platformData.platforms);
+        setUserPackage(pkgData.package);
+
+        const connected = platformData.platforms.filter((p) => p.connected).map((p) => p.name);
+
+        const listingData = await apiGetListings();
+        const mapped = listingData.listings.map((api) =>
+          apiListingToLocal(api, connected),
+        );
+        setListings(mapped);
+
+        // Only auto-route from early onboarding screens. Late hydration must not override
+        // in-app navigation (e.g. packages → dev payment after POST /api/payments/create).
+        const bootScreens: Screen[] = ['start', 'language', 'onboarding'];
+        setScreen((prev) => (bootScreens.includes(prev as Screen) ? 'dashboard' : prev));
+      } catch (err) {
+        if (err instanceof ApiError && err.statusCode === 401) {
+          clearStoredClientUserId();
+        }
+        // not authenticated — stay on current screen (typically start)
+      }
+    };
+
+    void hydrateFromApi();
+  }, []);
 
   const navigate = (nextScreen: string) => {
     if (nextScreen !== 'packages' && nextScreen !== 'devPayment') {
@@ -520,7 +519,8 @@ function SalexApp() {
       try {
         const res = await selectPackage('basic');
         setUserPackage(res.package);
-      } catch {
+      } catch (err) {
+        console.error('[SALex] Failed to select basic plan', err);
         // keep local state in sync when possible
       }
       setActivePlan('basic');
@@ -532,9 +532,12 @@ function SalexApp() {
     }
 
     if (plan === 'premium' || plan === 'premiumPlus') {
-      const currentUser = { id: profile.id };
+      if (!profile.id) {
+        console.error('[SALex] Cannot open Telegram payment: user ID is missing');
+        return;
+      }
       const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'YourSALexBot';
-      const telegramPayUrl = `https://t.me/${botUsername}?start=link_${currentUser.id}`;
+      const telegramPayUrl = `https://t.me/${botUsername}?start=link_${profile.id}`;
       window.open(telegramPayUrl, '_blank');
       return;
     }
