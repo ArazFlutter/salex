@@ -24,11 +24,9 @@ type TelegramWebApp = {
   colorScheme?: 'light' | 'dark';
 };
 
-const getWebApp = () => {
+const getWebApp = (): TelegramWebApp | null => {
   if (typeof window === 'undefined') return null;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const WebApp = require('@twa-dev/sdk').default as TelegramWebApp;
-  return WebApp;
+  return (window.Telegram?.WebApp as TelegramWebApp | undefined) ?? null;
 };
 
 export const isInsideTelegram = () => {
