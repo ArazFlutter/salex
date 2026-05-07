@@ -558,7 +558,9 @@ function SalexApp() {
       }
       const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'YourSALexBot';
       const telegramPayUrl = `https://t.me/${botUsername}?start=link_${profile.id}`;
-      window.open(telegramPayUrl, '_blank');
+      if (typeof window !== 'undefined') {
+        window.open(telegramPayUrl, '_blank');
+      }
       return;
     }
   };

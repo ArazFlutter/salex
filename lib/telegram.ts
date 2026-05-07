@@ -1,48 +1,95 @@
-import WebApp from '@twa-dev/sdk';
-
 type TelegramWebApp = {
   initData?: string;
   initDataUnsafe?: {
     user?: unknown;
   };
+  ready?: () => void;
+  expand?: () => void;
+  close?: () => void;
+  MainButton?: {
+    setText: (text: string) => void;
+    onClick: (onClick: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
+  BackButton?: {
+    onClick: (onClick: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
+  HapticFeedback?: {
+    notificationOccurred: (type: 'error' | 'success') => void;
+    impactOccurred: (type: 'light' | 'medium' | 'heavy') => void;
+  };
+  colorScheme?: 'light' | 'dark';
 };
 
-export const isInsideTelegram = () =>
-  typeof window !== 'undefined' && !!((window.Telegram?.WebApp as TelegramWebApp | undefined)?.initData);
+const getWebApp = () => {
+  if (typeof window === 'undefined') return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const WebApp = require('@twa-dev/sdk').default as TelegramWebApp;
+  return WebApp;
+};
+
+export const isInsideTelegram = () => {
+  if (typeof window === 'undefined') return false;
+  return !!((window.Telegram?.WebApp as TelegramWebApp | undefined)?.initData);
+};
 
 export const getTelegramUser = () => {
-  if (!isInsideTelegram()) return null;
-  return ((WebApp.initDataUnsafe as any)?.user ?? null) as any;
+  const app = getWebApp();
+  if (!app) return null;
+  return app.initDataUnsafe?.user ?? null;
 };
 
 export const getInitData = () => {
-  if (!isInsideTelegram()) return '';
-  return WebApp.initData;
+  const app = getWebApp();
+  if (!app) return '';
+  return app.initData ?? '';
 };
 
-export const expandApp = () => WebApp.expand();
+export const expandApp = () => {
+  const app = getWebApp();
+  app?.expand?.();
+};
 
-export const closeApp = () => WebApp.close();
+export const closeApp = () => {
+  const app = getWebApp();
+  app?.close?.();
+};
 
 export const setMainButton = (text: string, onClick: () => void) => {
-  WebApp.MainButton.setText(text);
-  WebApp.MainButton.onClick(onClick);
-  WebApp.MainButton.show();
+  const app = getWebApp();
+  if (!app?.MainButton) return;
+  app.MainButton.setText(text);
+  app.MainButton.onClick(onClick);
+  app.MainButton.show();
 };
 
-export const hideMainButton = () => WebApp.MainButton.hide();
+export const hideMainButton = () => {
+  const app = getWebApp();
+  app?.MainButton?.hide();
+};
 
 export const setBackButton = (onClick: () => void) => {
-  WebApp.BackButton.onClick(onClick);
-  WebApp.BackButton.show();
+  const app = getWebApp();
+  if (!app?.BackButton) return;
+  app.BackButton.onClick(onClick);
+  app.BackButton.show();
 };
 
-export const hideBackButton = () => WebApp.BackButton.hide();
+export const hideBackButton = () => {
+  const app = getWebApp();
+  app?.BackButton?.hide();
+};
 
 export const haptic = (type: 'light' | 'medium' | 'heavy' | 'error' | 'success') => {
-  if (type === 'error') WebApp.HapticFeedback.notificationOccurred('error');
-  else if (type === 'success') WebApp.HapticFeedback.notificationOccurred('success');
-  else WebApp.HapticFeedback.impactOccurred(type);
+  const app = getWebApp();
+  if (!app?.HapticFeedback) return;
+
+  if (type === 'error') app.HapticFeedback.notificationOccurred('error');
+  else if (type === 'success') app.HapticFeedback.notificationOccurred('success');
+  else app.HapticFeedback.impactOccurred(type);
 };
 
-export const getTelegramTheme = () => WebApp.colorScheme; // 'light' | 'dark'
+export const getTelegramTheme = () => getWebApp()?.colorScheme; // 'light' | 'dark'

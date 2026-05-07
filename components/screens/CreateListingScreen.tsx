@@ -641,7 +641,7 @@ export const CreateListingScreen = ({ onNavigate, draftListing, onSaveDraft, sha
   };
 
   useEffect(() => {
-    if (language === 'az' || !rootRef.current) {
+    if (typeof window === 'undefined' || language === 'az' || !rootRef.current) {
       return;
     }
 

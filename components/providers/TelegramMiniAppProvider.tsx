@@ -17,6 +17,10 @@ declare global {
 
 export function TelegramMiniAppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const webApp = window.Telegram?.WebApp;
 
     if (!webApp) {
