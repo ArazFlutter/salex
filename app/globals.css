@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+html,
+body {
+  min-height: 100%;
+}
+
+:root {
+  --tg-bg: var(--tg-theme-bg-color, #ffffff);
+  --tg-text: var(--tg-theme-text-color, #111827);
+  --tg-hint: var(--tg-theme-hint-color, #6B7280);
+  --tg-button: var(--tg-theme-button-color, #5B5CFF);
+  --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+  --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #F9FAFB);
+}
+
+body {
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}

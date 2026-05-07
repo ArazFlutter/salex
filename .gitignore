@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.next-dev/
+dist/
+dist-server/
+uploads/
+.env
+.env.local
+otp.txt
+
+# Local dev noise (not application source)
+*.log
+*.err
+tsconfig.tsbuildinfo
+OTP
+temp.txt
