@@ -100,7 +100,24 @@ export async function startPlatformLogin(
   } catch (error) {
     if (driver) await driver.quit().catch(() => {});
     activeLogins.delete(sessionKey);
-    throw error;
+
+    // Log the actual error for debugging
+    log.error('platform_auth.start_login_failed', {
+      userId,
+      platformId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // In development, expose real error message; in production, use generic message
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(
+      isDev ? `Login failed: ${error instanceof Error ? error.message : String(error)}` : 'Failed to start login. Check phone number and try again.',
+      400,
+    );
   }
 }
 
@@ -183,16 +200,20 @@ export async function verifyPlatformOtp(
       platformId,
     };
   } catch (error) {
-    log.warn('platform_auth.verify_otp_failed', {
+    const isDev = process.env.NODE_ENV !== 'production';
+    const errorMsg = error instanceof Error ? error.message : String(error);
+
+    log.error('platform_auth.verify_otp_failed', {
       userId,
       platformId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     throw error instanceof AppError
       ? error
       : new AppError(
-          error instanceof Error ? error.message : 'OTP verification failed',
+          isDev ? `Verification failed: ${errorMsg}` : 'OTP verification failed. Please try again.',
           400,
         );
   } finally {
