@@ -4,6 +4,7 @@ import { normalizePlatformId, type PlatformId } from '../utils/platforms';
 import { buildChromeDriver, getSeleniumTimeout, persistSessionCookies } from '../connectors/seleniumSession';
 import { TapazConnector } from '../connectors/tapazConnector';
 import { LalafoConnector } from '../connectors/lalafoConnector';
+import { LayloConnector } from '../connectors/layloConnector';
 import { saveSession } from './platformSessionService';
 
 /**
@@ -66,6 +67,9 @@ export async function startPlatformLogin(
       result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
     } else if (platformId === 'lalafo') {
       const connector = new LalafoConnector();
+      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+    } else if (platformId === 'laylo') {
+      const connector = new LayloConnector();
       result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
@@ -153,6 +157,9 @@ export async function verifyPlatformOtp(
       success = await connector.completeLoginWithOtp(driver, otpTrimmed, authFramePath, timeoutMs);
     } else if (platformId === 'lalafo') {
       const connector = new LalafoConnector();
+      success = await connector.completeLoginWithOtp(driver, otpTrimmed, timeoutMs);
+    } else if (platformId === 'laylo') {
+      const connector = new LayloConnector();
       success = await connector.completeLoginWithOtp(driver, otpTrimmed, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
