@@ -11,13 +11,14 @@ const LOGIN_URL = `${BASE_URL}/`;
 const ENV_PREFIX = 'LALAFO';
 
 /**
- * Find a button or link by partial text content.
- * Puppeteer doesn't support :has-text() selector, so we use evaluate.
+ * Click a button or link by partial text content.
+ * Puppeteer doesn't support :has-text() selector, so we use evaluate to find and click directly.
  */
-async function findButtonByText(page: Page, text: string): Promise<any> {
-  return page.evaluateHandle((searchText) => {
+async function clickButtonByText(page: Page, text: string): Promise<void> {
+  await page.evaluate((searchText) => {
     const buttons = Array.from(document.querySelectorAll('button, a'));
-    return buttons.find((el) => el.textContent?.trim().includes(searchText));
+    const btn = buttons.find((el) => el.textContent?.trim().includes(searchText));
+    if (btn) (btn as HTMLElement).click();
   }, text);
 }
 
@@ -52,14 +53,13 @@ export class LalafoConnector extends BaseConnector {
       await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: timeoutMs });
 
       // Click login/register button if exists
-      let authBtn = await page.$('[data-cy="login"]');
-      if (!authBtn) {
-        authBtn = await findButtonByText(page, 'Daxil ol');
-      }
+      const authBtn = await page.$('[data-cy="login"]');
       if (authBtn) {
         await authBtn.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
+      } else {
+        await clickButtonByText(page, 'Daxil ol');
       }
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
 
       // Wait for phone input
       const phoneInput = await page.waitForSelector('input[type="tel"], input[type="text"][placeholder*="55"]', { timeout: timeoutMs });
@@ -73,14 +73,12 @@ export class LalafoConnector extends BaseConnector {
       console.log('[lalafo] Phone entered:', phone);
 
       // Click send code button
-      let sendBtn = await page.$('button[type="submit"]');
-      if (!sendBtn) {
-        sendBtn = await findButtonByText(page, 'Kod');
+      const sendBtn = await page.$('button[type="submit"]');
+      if (sendBtn) {
+        await sendBtn.click();
+      } else {
+        await clickButtonByText(page, 'Kod');
       }
-      if (!sendBtn) {
-        throw new Error('Send button not found');
-      }
-      await sendBtn.click();
 
       // Wait for OTP input to appear
       await page.waitForSelector('input[type="text"], input[placeholder*="kod"]', { timeout: timeoutMs }).catch(() => {});
@@ -127,12 +125,11 @@ export class LalafoConnector extends BaseConnector {
       await otpInput.type(otp, { delay: 100 });
 
       // Click verify button
-      let verifyBtn = await page.$('button[type="submit"]');
-      if (!verifyBtn) {
-        verifyBtn = await findButtonByText(page, 'Dov');
-      }
+      const verifyBtn = await page.$('button[type="submit"]');
       if (verifyBtn) {
         await verifyBtn.click();
+      } else {
+        await clickButtonByText(page, 'Dov');
       }
 
       // Wait for navigation/success

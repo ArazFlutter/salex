@@ -11,13 +11,14 @@ const LOGIN_URL = `${BASE_URL}/`;
 const ENV_PREFIX = 'TAPAZ';
 
 /**
- * Find a button or link by partial text content.
- * Puppeteer doesn't support :has-text() selector, so we use evaluate.
+ * Click a button or link by partial text content.
+ * Puppeteer doesn't support :has-text() selector, so we use evaluate to find and click directly.
  */
-async function findButtonByText(page: Page, text: string): Promise<any> {
-  return page.evaluateHandle((searchText) => {
+async function clickButtonByText(page: Page, text: string): Promise<void> {
+  await page.evaluate((searchText) => {
     const buttons = Array.from(document.querySelectorAll('button, a'));
-    return buttons.find((el) => el.textContent?.trim().includes(searchText));
+    const btn = buttons.find((el) => el.textContent?.trim().includes(searchText));
+    if (btn) (btn as HTMLElement).click();
   }, text);
 }
 
@@ -52,14 +53,13 @@ export class TapazConnector extends BaseConnector {
       await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: timeoutMs });
 
       // Find and click login button if needed
-      let loginButton = await page.$('[data-cy="login-button"]');
-      if (!loginButton) {
-        loginButton = await findButtonByText(page, 'Daxil ol');
-      }
+      const loginButton = await page.$('[data-cy="login-button"]');
       if (loginButton) {
         await loginButton.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
+      } else {
+        await clickButtonByText(page, 'Daxil ol');
       }
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
 
       // Wait for phone input and enter phone
       const phoneInput = await page.waitForSelector('input[type="tel"], input[placeholder*="55"], input[name*="phone"]', { timeout: timeoutMs });
@@ -74,16 +74,14 @@ export class TapazConnector extends BaseConnector {
 
       // Find and click submit button
       let submitBtn = await page.$('button[type="submit"]');
-      if (!submitBtn) {
-        submitBtn = await findButtonByText(page, 'Davam');
+      if (submitBtn) {
+        await submitBtn.click();
+      } else {
+        await clickButtonByText(page, 'Davam');
       }
       if (!submitBtn) {
-        submitBtn = await findButtonByText(page, 'Kodu');
+        await clickButtonByText(page, 'Kodu');
       }
-      if (!submitBtn) {
-        throw new Error('Submit button not found');
-      }
-      await submitBtn.click();
 
       // Wait for OTP request to be sent (page may show OTP input or success message)
       await page.waitForSelector('input[type="text"], input[placeholder*="kod"], input[placeholder*="OTP"]', { timeout: timeoutMs }).catch(() => {});
@@ -131,15 +129,11 @@ export class TapazConnector extends BaseConnector {
       await otpInput.type(otp, { delay: 100 });
 
       // Find and click verify button
-      let verifyBtn = await page.$('button[type="submit"]');
-      if (!verifyBtn) {
-        verifyBtn = await findButtonByText(page, 'Dov');
-      }
-      if (!verifyBtn) {
-        verifyBtn = await findButtonByText(page, 'Tamamla');
-      }
+      const verifyBtn = await page.$('button[type="submit"]');
       if (verifyBtn) {
         await verifyBtn.click();
+      } else {
+        await clickButtonByText(page, 'Dov');
       }
 
       // Wait for login success - check if we're logged in
