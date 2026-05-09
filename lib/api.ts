@@ -15,7 +15,10 @@ async function request<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  // Add cache-busting timestamp to GET requests to bypass browser/Telegram cache
+  const bustedPath = method === 'GET' ? `${path}?t=${Date.now()}` : path;
+  
+  const res = await fetch(`${BASE}${bustedPath}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
