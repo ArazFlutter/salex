@@ -60,6 +60,23 @@ export class TapazConnector extends BaseConnector {
       // Navigate to login page
       await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: timeoutMs });
 
+      // Debug: Take screenshot and log available buttons
+      try {
+        await page.screenshot({ path: '/tmp/tapaz-debug.png', fullPage: true });
+        console.log('[tapaz] Screenshot saved to /tmp/tapaz-debug.png');
+      } catch (err) {
+        console.log('[tapaz] Could not save screenshot:', err);
+      }
+
+      // Wait for page to fully load
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Log all available button texts for debugging
+      const buttons = await page.$$eval('button, a, [role="button"]', (els) =>
+        els.map((el) => (el as HTMLElement).innerText?.trim()).filter(Boolean),
+      );
+      console.log('[tapaz] Available buttons:', buttons);
+
       // Find and click login button if needed
       const loginButton = await page.$('[data-cy="login-button"]');
       if (loginButton) {
