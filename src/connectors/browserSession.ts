@@ -20,8 +20,8 @@ export async function buildBrowser(): Promise<Browser> {
   const isDev = process.env.NODE_ENV === 'development';
   const headless = process.env.PUPPETEER_HEADLESS !== 'false';
 
-  const launchOptions = {
-    headless: headless ? true : false,
+  const launchOptions: any = {
+    headless: headless ? 'new' : false,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

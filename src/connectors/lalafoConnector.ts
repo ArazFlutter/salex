@@ -11,15 +11,23 @@ const LOGIN_URL = `${BASE_URL}/`;
 const ENV_PREFIX = 'LALAFO';
 
 /**
- * Click a button or link by partial text content.
- * Puppeteer doesn't support :has-text() selector, so we use evaluate to find and click directly.
+ * Click a button, link, or button-role element by partial text content.
+ * Handles visibility, scrolls into view, and throws if not found.
  */
-async function clickButtonByText(page: Page, text: string): Promise<void> {
-  await page.evaluate((searchText) => {
-    const buttons = Array.from(document.querySelectorAll('button, a'));
-    const btn = buttons.find((el) => el.textContent?.trim().includes(searchText));
-    if (btn) (btn as HTMLElement).click();
-  }, text);
+async function clickByText(page: Page, text: string): Promise<void> {
+  const elements = await page.$$('button, a, [role="button"]');
+  for (const el of elements) {
+    const visibleText = await page.evaluate(
+      (node: Element) => (node as HTMLElement).innerText || node.textContent || '',
+      el,
+    );
+    if (visibleText.trim().includes(text)) {
+      await el.evaluate((node: Element) => (node as HTMLElement).scrollIntoView({ block: 'center' }));
+      await el.click();
+      return;
+    }
+  }
+  throw new Error(`Button not found: ${text}`);
 }
 
 export class LalafoConnector extends BaseConnector {
@@ -57,7 +65,7 @@ export class LalafoConnector extends BaseConnector {
       if (authBtn) {
         await authBtn.click();
       } else {
-        await clickButtonByText(page, 'Daxil ol');
+        await clickByText(page, 'Daxil ol');
       }
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
 
@@ -77,7 +85,7 @@ export class LalafoConnector extends BaseConnector {
       if (sendBtn) {
         await sendBtn.click();
       } else {
-        await clickButtonByText(page, 'Kod');
+        await clickByText(page, 'Kod');
       }
 
       // Wait for OTP input to appear
@@ -129,7 +137,7 @@ export class LalafoConnector extends BaseConnector {
       if (verifyBtn) {
         await verifyBtn.click();
       } else {
-        await clickButtonByText(page, 'Dov');
+        await clickByText(page, 'Dov');
       }
 
       // Wait for navigation/success
