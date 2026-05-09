@@ -16,8 +16,13 @@ export function buildChromeOptions(envPrefix: string): chrome.Options {
   const headless = process.env[`${envPrefix}_SELENIUM_HEADLESS`] !== 'false';
   const chromeBinary = process.env.CHROME_BIN?.trim();
 
+  // Always add these args for stability
+  options.addArguments('--no-sandbox');
+  options.addArguments('--disable-dev-shm-usage');
+  options.addArguments('--disable-gpu');
+
   if (headless) {
-    options.addArguments('--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage');
+    options.addArguments('--headless=new');
   }
 
   if (chromeBinary) {
@@ -32,9 +37,14 @@ export function getSeleniumTimeout(envPrefix: string): number {
 }
 
 export async function buildChromeDriver(envPrefix: string): Promise<WebDriver> {
+  const chromeDriverPath = process.env.CHROMEDRIVER_PATH || '/usr/local/bin/chromedriver';
+
+  const service = new chrome.ServiceBuilder(chromeDriverPath);
+
   return new Builder()
     .forBrowser('chrome')
     .setChromeOptions(buildChromeOptions(envPrefix))
+    .setChromeService(service)
     .build();
 }
 

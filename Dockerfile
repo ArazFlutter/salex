@@ -2,12 +2,15 @@ FROM node:22-slim AS builder
 
 RUN apt-get update && apt-get install -y \
     chromium \
-    chromium-driver \
+    ca-certificates \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+RUN npm install -g chromedriver@148
+
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
 
 WORKDIR /app
 COPY package*.json ./
@@ -19,12 +22,15 @@ FROM node:22-slim AS runner
 
 RUN apt-get update && apt-get install -y \
     chromium \
-    chromium-driver \
+    ca-certificates \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+RUN npm install -g chromedriver@148
+
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
 
 WORKDIR /app
 COPY package*.json ./
