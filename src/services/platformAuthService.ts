@@ -3,6 +3,7 @@ import { log } from '../utils/logger';
 import { normalizePlatformId, type PlatformId } from '../utils/platforms';
 import { buildChromeDriver, getSeleniumTimeout, persistSessionCookies } from '../connectors/seleniumSession';
 import { TapazConnector } from '../connectors/tapazConnector';
+import { LalafoConnector } from '../connectors/lalafoConnector';
 import { saveSession } from './platformSessionService';
 
 /**
@@ -62,6 +63,9 @@ export async function startPlatformLogin(
 
     if (platformId === 'tapaz') {
       const connector = new TapazConnector();
+      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+    } else if (platformId === 'lalafo') {
+      const connector = new LalafoConnector();
       result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
@@ -147,6 +151,9 @@ export async function verifyPlatformOtp(
         throw new AppError('Invalid session state: missing authFramePath', 500);
       }
       success = await connector.completeLoginWithOtp(driver, otpTrimmed, authFramePath, timeoutMs);
+    } else if (platformId === 'lalafo') {
+      const connector = new LalafoConnector();
+      success = await connector.completeLoginWithOtp(driver, otpTrimmed, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
     }

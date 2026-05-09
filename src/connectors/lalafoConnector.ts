@@ -1254,6 +1254,53 @@ export class LalafoConnector extends BaseConnector {
   }
 
   // =========================================================================
+  //  Public — Platform Connection (Phone + OTP flow)
+  // =========================================================================
+
+  async startLoginWithPhone(
+    driver: WebDriver,
+    phone: string,
+    timeoutMs: number,
+  ): Promise<{ success: boolean }> {
+    try {
+      await driver.get(BASE_URL);
+      await waitForPageLoad(driver, timeoutMs);
+
+      const loginOpened = await this.openLoginForm(driver, timeoutMs);
+      if (!loginOpened) return { success: false };
+
+      const phoneEntered = await this.enterPhoneNumber(driver, phone, timeoutMs);
+      if (!phoneEntered) return { success: false };
+
+      const otpRequested = await this.submitPhoneForOtp(driver, timeoutMs);
+      if (!otpRequested) return { success: false };
+
+      return { success: true };
+    } catch (err) {
+      console.error('[lalafo] startLoginWithPhone error:', err);
+      return { success: false };
+    }
+  }
+
+  async completeLoginWithOtp(
+    driver: WebDriver,
+    otp: string,
+    timeoutMs: number,
+  ): Promise<boolean> {
+    try {
+      const otpEntered = await this.enterOtpCode(driver, otp);
+      if (!otpEntered) return false;
+
+      await this.submitOtpVerification(driver, timeoutMs);
+      const success = await this.waitForLoginSuccess(driver, timeoutMs);
+      return success;
+    } catch (err) {
+      console.error('[lalafo] completeLoginWithOtp error:', err);
+      return false;
+    }
+  }
+
+  // =========================================================================
   //  Private — generic helpers
   // =========================================================================
 
