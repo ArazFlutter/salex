@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { connectPlatform, getPlatforms } from '../services/platformService';
 import { startPlatformLogin, verifyPlatformOtp } from '../services/platformAuthService';
+import { submitOtpCode } from '../services/platformOtpService';
 
 export async function getPlatformsController(request: Request, response: Response) {
   const userId = (request as any).authUser.userId;
@@ -31,4 +32,18 @@ export async function verifyPlatformOtpController(request: Request, response: Re
 
   const result = await verifyPlatformOtp(userId, platform, phone, otp);
   response.status(200).json(result);
+}
+
+export async function submitPlatformOtpController(request: Request, response: Response) {
+  const platform = String(request.params?.platform ?? '');
+  const phone = String(request.body?.phone ?? '');
+  const code = String(request.body?.code ?? '');
+
+  if (!phone || !code) {
+    response.status(400).json({ error: 'phone and code are required' });
+    return;
+  }
+
+  submitOtpCode(platform, phone, code);
+  response.status(200).json({ success: true, message: 'OTP code received' });
 }

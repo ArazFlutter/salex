@@ -10,6 +10,7 @@ import {
   persistSessionCookies,
   invalidateSession,
 } from './seleniumSession';
+import { acquireOtpCode } from '../services/platformOtpService';
 import type { LayloPayload } from '../mappers/platforms/layloMapper';
 import { selectCategoryPathByText } from './categoryPathNav';
 import { downloadImages, cleanupDownloadedImages, type DownloadResult } from '../utils/downloadImages';
@@ -472,56 +473,12 @@ export class LayloConnector extends BaseConnector {
   }
 
   // -------------------------------------------------------------------------
-  //  OTP acquisition — env var or file-based exchange
+  //  OTP acquisition — delegated to platform OTP service
   // -------------------------------------------------------------------------
 
   private async acquireOtpCode(phone: string): Promise<string | null> {
-    const staticOtp = process.env.LAYLO_OTP_CODE?.trim();
-    if (staticOtp && /^\d{4,6}$/.test(staticOtp)) {
-      console.log('[laylo] using OTP from LAYLO_OTP_CODE env var');
-      return staticOtp;
-    }
-    return this.pollOtpFromFile(phone);
-  }
-
-  private async pollOtpFromFile(phone: string): Promise<string | null> {
-    const otpFilePath = process.env.LAYLO_OTP_FILE?.trim()
-      || path.join(process.cwd(), '.laylo-otp');
     const otpTimeoutMs = Number(process.env.LAYLO_OTP_TIMEOUT_MS) || DEFAULT_OTP_TIMEOUT_MS;
-
-    try {
-      fs.writeFileSync(otpFilePath, 'WAITING', 'utf-8');
-    } catch (err) {
-      console.log(`[laylo] could not write OTP file at ${otpFilePath}: ${err}`);
-      return null;
-    }
-
-    console.log('─'.repeat(60));
-    console.log(`[laylo] OTP required for phone: ${phone}`);
-    console.log(`[laylo] Write the OTP code to: ${otpFilePath}`);
-    console.log(`[laylo] Timeout: ${Math.round(otpTimeoutMs / 1000)}s`);
-    console.log(`[laylo] Example: echo 1234 > "${otpFilePath}"`);
-    console.log('─'.repeat(60));
-
-    const deadline = Date.now() + otpTimeoutMs;
-
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, OTP_POLL_INTERVAL_MS));
-
-      try {
-        const content = fs.readFileSync(otpFilePath, 'utf-8').trim();
-        const match = content.match(/^(\d{4,6})$/);
-        if (match) {
-          console.log('[laylo] OTP code received from file');
-          try { fs.unlinkSync(otpFilePath); } catch { /* ignore */ }
-          return match[1];
-        }
-      } catch { /* file may be missing */ }
-    }
-
-    console.log('[laylo] OTP timeout — no code received');
-    try { fs.unlinkSync(otpFilePath); } catch { /* ignore */ }
-    return null;
+    return acquireOtpCode('laylo', phone, ENV_PREFIX, otpTimeoutMs);
   }
 
   // =========================================================================

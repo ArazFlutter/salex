@@ -10,6 +10,7 @@ import {
   persistSessionCookies,
   invalidateSession,
 } from './seleniumSession';
+import { acquireOtpCode } from '../services/platformOtpService';
 import type { TapazPayload } from '../mappers/platforms/tapazMapper';
 import { selectCategoryPathWithVariants } from './categoryPathNav';
 import { categoryPathVariantsForTapaz } from './platformCategoryLabels';
@@ -1588,55 +1589,8 @@ export class TapazConnector extends BaseConnector {
   // -------------------------------------------------------------------------
 
   private async acquireOtpCode(phone: string): Promise<string | null> {
-    const staticOtp = process.env.TAPAZ_OTP_CODE?.trim();
-    if (staticOtp && /^\d{4,6}$/.test(staticOtp)) {
-      console.log('[tapaz] using OTP from TAPAZ_OTP_CODE env var');
-      return staticOtp;
-    }
-
-    return this.pollOtpFromFile(phone);
-  }
-
-  private async pollOtpFromFile(phone: string): Promise<string | null> {
-    const otpFilePath = process.env.TAPAZ_OTP_FILE?.trim()
-      || path.join(process.cwd(), '.tapaz-otp');
     const otpTimeoutMs = Number(process.env.TAPAZ_OTP_TIMEOUT_MS) || DEFAULT_OTP_TIMEOUT_MS;
-
-    try {
-      fs.writeFileSync(otpFilePath, 'WAITING', 'utf-8');
-    } catch (err) {
-      console.log(`[tapaz] could not write OTP file at ${otpFilePath}: ${err}`);
-      return null;
-    }
-
-    console.log('─'.repeat(60));
-    console.log(`[tapaz] OTP required for phone: ${phone}`);
-    console.log(`[tapaz] Write the OTP code to: ${otpFilePath}`);
-    console.log(`[tapaz] Timeout: ${Math.round(otpTimeoutMs / 1000)}s`);
-    console.log(`[tapaz] Example: echo 1234 > "${otpFilePath}"`);
-    console.log('─'.repeat(60));
-
-    const deadline = Date.now() + otpTimeoutMs;
-
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, OTP_POLL_INTERVAL_MS));
-
-      try {
-        const content = fs.readFileSync(otpFilePath, 'utf-8').trim();
-        const match = content.match(/^(\d{4,6})$/);
-        if (match) {
-          console.log('[tapaz] OTP code received from file');
-          try { fs.unlinkSync(otpFilePath); } catch { /* ignore cleanup error */ }
-          return match[1];
-        }
-      } catch {
-        // file may have been deleted or inaccessible
-      }
-    }
-
-    console.log('[tapaz] OTP timeout — no code received');
-    try { fs.unlinkSync(otpFilePath); } catch { /* ignore */ }
-    return null;
+    return acquireOtpCode('tapaz', phone, ENV_PREFIX, otpTimeoutMs);
   }
 
   // =========================================================================

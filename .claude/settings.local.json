@@ -7,7 +7,8 @@
       "Bash(cd \"c:\\\\\\\\Users\\\\\\\\user\\\\\\\\Downloads\\\\\\\\salex-main\")",
       "Bash(git rebase *)",
       "Bash(git commit *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(ls -la docker-compose*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\user\\Downloads\\salex-main"
