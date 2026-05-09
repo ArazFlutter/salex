@@ -32,6 +32,8 @@ export async function startPlatformLogin(
   platform: string,
   phone: string,
 ): Promise<{ success: boolean; message: string; sessionId: string }> {
+  console.log('START LOGIN CALLED:', { userId, platform, phone });
+
   const platformId = normalizePlatformId(platform);
 
   if (!platformId) {

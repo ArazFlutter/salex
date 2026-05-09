@@ -16,6 +16,8 @@ export async function connectPlatformController(request: Request, response: Resp
 }
 
 export async function startPlatformLoginController(request: Request, response: Response) {
+  console.log('REQUEST BODY:', request.body);
+
   const userId = (request as any).authUser.userId;
   const platform = String(request.params?.platform ?? '');
   const phone = String(request.body?.phone ?? '');
