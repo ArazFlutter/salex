@@ -1,7 +1,7 @@
 import { AppError } from '../utils/AppError';
 import { log } from '../utils/logger';
 import { normalizePlatformId, type PlatformId } from '../utils/platforms';
-import { buildChromeDriver, getSeleniumTimeout, persistSessionCookies } from '../connectors/seleniumSession';
+import { buildBrowser, getBrowserTimeout, extractCookies } from '../connectors/browserSession';
 import { TapazConnector } from '../connectors/tapazConnector';
 import { LalafoConnector } from '../connectors/lalafoConnector';
 import { LayloConnector } from '../connectors/layloConnector';
@@ -9,12 +9,12 @@ import { saveSession } from './platformSessionService';
 
 /**
  * In-memory store for ongoing login sessions.
- * Maps "userId:platformId" → driver + auth state
+ * Maps "userId:platformId" → browser + auth state
  * Cleaned up after OTP verification or timeout.
  */
 const activeLogins = new Map<
   string,
-  { userId: string; platformId: PlatformId; phone: string; driver: any; authFramePath?: any; createdAt: number }
+  { userId: string; platformId: PlatformId; phone: string; browser: any; authFramePath?: any; createdAt: number }
 >();
 
 const LOGIN_SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -50,42 +50,42 @@ export async function startPlatformLogin(
     throw new AppError('Phone number is required', 400);
   }
 
-  let driver: any = null;
+  let browser: any = null;
 
   try {
     log.info('platform_auth.start_login', { userId, platformId, phone: masked(normalized) });
 
-    // Create Selenium driver
-    driver = await buildChromeDriver('TAPAZ');
-    const timeoutMs = getSeleniumTimeout('TAPAZ');
+    // Create Puppeteer browser instance
+    browser = await buildBrowser();
+    const timeoutMs = getBrowserTimeout();
 
     // Call appropriate connector based on platform
     let result: { success: boolean; authFramePath?: any };
 
     if (platformId === 'tapaz') {
       const connector = new TapazConnector();
-      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+      result = await connector.startLoginWithPhone(browser, normalized, timeoutMs);
     } else if (platformId === 'lalafo') {
       const connector = new LalafoConnector();
-      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+      result = await connector.startLoginWithPhone(browser, normalized, timeoutMs);
     } else if (platformId === 'laylo') {
       const connector = new LayloConnector();
-      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+      result = await connector.startLoginWithPhone(browser, normalized, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
     }
 
     if (!result.success) {
-      await driver.quit().catch(() => {});
+      await browser.close().catch(() => {});
       throw new AppError('Failed to start login. Check phone number and try again.', 400);
     }
 
-    // Store session with driver for OTP verification
+    // Store session with browser for OTP verification
     activeLogins.set(sessionKey, {
       userId,
       platformId,
       phone: normalized,
-      driver,
+      browser,
       authFramePath: result.authFramePath,
       createdAt: Date.now(),
     });
@@ -98,7 +98,7 @@ export async function startPlatformLogin(
       sessionId: sessionKey,
     };
   } catch (error) {
-    if (driver) await driver.quit().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
     activeLogins.delete(sessionKey);
 
     // Log the actual error for debugging
@@ -147,7 +147,7 @@ export async function verifyPlatformOtp(
   // Check timeout
   if (Date.now() - loginSession.createdAt > LOGIN_SESSION_TIMEOUT_MS) {
     activeLogins.delete(sessionKey);
-    loginSession.driver?.quit().catch(() => {});
+    loginSession.browser?.close().catch(() => {});
     throw new AppError('Login session expired. Please start again.', 408);
   }
 
@@ -156,28 +156,24 @@ export async function verifyPlatformOtp(
     throw new AppError('OTP is required', 400);
   }
 
-  const driver = loginSession.driver;
+  const browser = loginSession.browser;
 
   try {
     log.info('platform_auth.verify_otp', { userId, platformId, phone: masked(phone) });
 
-    const timeoutMs = getSeleniumTimeout('TAPAZ');
+    const timeoutMs = getBrowserTimeout();
     let success = false;
 
     // Submit OTP via appropriate connector
     if (platformId === 'tapaz') {
       const connector = new TapazConnector();
-      const authFramePath = loginSession.authFramePath;
-      if (!authFramePath) {
-        throw new AppError('Invalid session state: missing authFramePath', 500);
-      }
-      success = await connector.completeLoginWithOtp(driver, otpTrimmed, authFramePath, timeoutMs);
+      success = await connector.completeLoginWithOtp(browser, otpTrimmed, timeoutMs);
     } else if (platformId === 'lalafo') {
       const connector = new LalafoConnector();
-      success = await connector.completeLoginWithOtp(driver, otpTrimmed, timeoutMs);
+      success = await connector.completeLoginWithOtp(browser, otpTrimmed, timeoutMs);
     } else if (platformId === 'laylo') {
       const connector = new LayloConnector();
-      success = await connector.completeLoginWithOtp(driver, otpTrimmed, timeoutMs);
+      success = await connector.completeLoginWithOtp(browser, otpTrimmed, timeoutMs);
     } else {
       throw new AppError('Platform connector not yet implemented', 501);
     }
@@ -187,7 +183,6 @@ export async function verifyPlatformOtp(
     }
 
     // Extract and save cookies
-    await persistSessionCookies(driver, userId, platformId);
     await saveSession(userId, platformId, []);
 
     activeLogins.delete(sessionKey);
@@ -217,8 +212,8 @@ export async function verifyPlatformOtp(
           400,
         );
   } finally {
-    if (driver) {
-      await driver.quit().catch(() => {});
+    if (browser) {
+      await browser.close().catch(() => {});
     }
     activeLogins.delete(sessionKey);
   }
