@@ -164,6 +164,22 @@ export function connectPlatform(platform: string) {
   }>('/platforms/connect', { platform });
 }
 
+export function startPlatformLogin(platform: string, phone: string) {
+  return api.post<{
+    success: boolean;
+    message: string;
+    sessionId: string;
+  }>(`/platforms/${encodeURIComponent(platform)}/start-login`, { phone });
+}
+
+export function verifyPlatformOtp(platform: string, phone: string, otp: string) {
+  return api.post<{
+    success: boolean;
+    message: string;
+    platformId: string;
+  }>(`/platforms/${encodeURIComponent(platform)}/verify-otp`, { phone, otp });
+}
+
 // ── Listings ──
 
 export type ApiListing = {

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/Input';
 import { motion } from 'motion/react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { connectPlatform, ApiError } from '@/lib/api';
+import { startPlatformLogin, verifyPlatformOtp, ApiError } from '@/lib/api';
 import { hideBackButton, setBackButton } from '@/lib/telegram';
 
 interface PlatformConnectionScreenProps {
@@ -22,9 +22,30 @@ export const PlatformConnectionScreen = ({
 }: PlatformConnectionScreenProps) => {
   const { t } = useLanguage();
   const [step, setStep] = useState<'phone' | 'otp' | 'success'>('phone');
+  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionId, setSessionId] = useState('');
+
+  const handleSendOtp = async () => {
+    if (!phone.trim()) {
+      setError('Please enter your phone number');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const result = await startPlatformLogin(platformName, phone.trim());
+      setSessionId(result.sessionId);
+      setStep('otp');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to start login');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -38,13 +59,19 @@ export const PlatformConnectionScreen = ({
   };
 
   const handleVerify = async () => {
+    const otpCode = otp.join('');
+    if (otpCode.length !== 4) {
+      setError('Please enter all 4 digits');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      await connectPlatform(platformName);
+      await verifyPlatformOtp(platformName, phone.trim(), otpCode);
       setStep('success');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Connection failed');
+      setError(err instanceof ApiError ? err.message : 'Verification failed');
     } finally {
       setLoading(false);
     }
@@ -89,10 +116,17 @@ export const PlatformConnectionScreen = ({
             <div className="h-[52px] px-4 rounded-[14px] border border-[#E5E7EB] bg-[#F7F8FC] flex items-center justify-center text-[#6B7280] font-medium">
               +994
             </div>
-            <Input placeholder="___ ___ __ __" className="flex-1 text-[16px] tracking-widest" type="tel" />
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="___ ___ __ __"
+              className="flex-1 text-[16px] tracking-widest"
+              type="tel"
+            />
           </div>
-          <Button onClick={() => setStep('otp')} className="w-full">
-            {t('send_verification_code')}
+          {error && <p className="text-[13px] text-red-500 mb-4">{error}</p>}
+          <Button onClick={handleSendOtp} disabled={loading || !phone.trim()} className="w-full">
+            {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : t('send_verification_code')}
           </Button>
         </motion.div>
       )}
@@ -118,7 +152,7 @@ export const PlatformConnectionScreen = ({
 
           {error && <p className="text-[13px] text-red-500 text-center mb-4">{error}</p>}
 
-          <Button onClick={handleVerify} disabled={loading} className="w-full">
+          <Button onClick={handleVerify} disabled={loading || otp.join('').length !== 4} className="w-full">
             {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : t('verify')}
           </Button>
         </motion.div>
