@@ -10,6 +10,17 @@ const LOGIN_URL = `${BASE_URL}/`;
 
 const ENV_PREFIX = 'LALAFO';
 
+/**
+ * Find a button or link by partial text content.
+ * Puppeteer doesn't support :has-text() selector, so we use evaluate.
+ */
+async function findButtonByText(page: Page, text: string): Promise<any> {
+  return page.evaluateHandle((searchText) => {
+    const buttons = Array.from(document.querySelectorAll('button, a'));
+    return buttons.find((el) => el.textContent?.trim().includes(searchText));
+  }, text);
+}
+
 export class LalafoConnector extends BaseConnector {
   constructor() {
     super('lalafo' as PlatformId, 'Lalafo');
@@ -41,7 +52,10 @@ export class LalafoConnector extends BaseConnector {
       await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: timeoutMs });
 
       // Click login/register button if exists
-      const authBtn = await page.$('button:has-text("Daxil ol"), a:has-text("Daxil ol"), [data-cy="login"]');
+      let authBtn = await page.$('[data-cy="login"]');
+      if (!authBtn) {
+        authBtn = await findButtonByText(page, 'Daxil ol');
+      }
       if (authBtn) {
         await authBtn.click();
         await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
@@ -59,7 +73,10 @@ export class LalafoConnector extends BaseConnector {
       console.log('[lalafo] Phone entered:', phone);
 
       // Click send code button
-      const sendBtn = await page.$('button[type="submit"], button:has-text("Kod")');
+      let sendBtn = await page.$('button[type="submit"]');
+      if (!sendBtn) {
+        sendBtn = await findButtonByText(page, 'Kod');
+      }
       if (!sendBtn) {
         throw new Error('Send button not found');
       }
@@ -110,7 +127,10 @@ export class LalafoConnector extends BaseConnector {
       await otpInput.type(otp, { delay: 100 });
 
       // Click verify button
-      const verifyBtn = await page.$('button[type="submit"], button:has-text("Dov")');
+      let verifyBtn = await page.$('button[type="submit"]');
+      if (!verifyBtn) {
+        verifyBtn = await findButtonByText(page, 'Dov');
+      }
       if (verifyBtn) {
         await verifyBtn.click();
       }

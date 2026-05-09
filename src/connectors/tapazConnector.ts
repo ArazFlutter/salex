@@ -10,6 +10,17 @@ const LOGIN_URL = `${BASE_URL}/`;
 
 const ENV_PREFIX = 'TAPAZ';
 
+/**
+ * Find a button or link by partial text content.
+ * Puppeteer doesn't support :has-text() selector, so we use evaluate.
+ */
+async function findButtonByText(page: Page, text: string): Promise<any> {
+  return page.evaluateHandle((searchText) => {
+    const buttons = Array.from(document.querySelectorAll('button, a'));
+    return buttons.find((el) => el.textContent?.trim().includes(searchText));
+  }, text);
+}
+
 export class TapazConnector extends BaseConnector {
   constructor() {
     super('tapaz' as PlatformId, 'Tap.az');
@@ -41,7 +52,10 @@ export class TapazConnector extends BaseConnector {
       await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: timeoutMs });
 
       // Find and click login button if needed
-      const loginButton = await page.$('[data-cy="login-button"], button:has-text("Daxil ol"), a:has-text("Daxil ol")');
+      let loginButton = await page.$('[data-cy="login-button"]');
+      if (!loginButton) {
+        loginButton = await findButtonByText(page, 'Daxil ol');
+      }
       if (loginButton) {
         await loginButton.click();
         await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {});
@@ -59,7 +73,13 @@ export class TapazConnector extends BaseConnector {
       console.log('[tapaz] Phone entered:', phone);
 
       // Find and click submit button
-      const submitBtn = await page.$('button[type="submit"], button:has-text("Davam"), button:has-text("Kodu G")');
+      let submitBtn = await page.$('button[type="submit"]');
+      if (!submitBtn) {
+        submitBtn = await findButtonByText(page, 'Davam');
+      }
+      if (!submitBtn) {
+        submitBtn = await findButtonByText(page, 'Kodu');
+      }
       if (!submitBtn) {
         throw new Error('Submit button not found');
       }
@@ -111,7 +131,13 @@ export class TapazConnector extends BaseConnector {
       await otpInput.type(otp, { delay: 100 });
 
       // Find and click verify button
-      const verifyBtn = await page.$('button[type="submit"], button:has-text("Dov"), button:has-text("Tamamla")');
+      let verifyBtn = await page.$('button[type="submit"]');
+      if (!verifyBtn) {
+        verifyBtn = await findButtonByText(page, 'Dov');
+      }
+      if (!verifyBtn) {
+        verifyBtn = await findButtonByText(page, 'Tamamla');
+      }
       if (verifyBtn) {
         await verifyBtn.click();
       }
