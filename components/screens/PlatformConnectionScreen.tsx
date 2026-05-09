@@ -37,7 +37,9 @@ export const PlatformConnectionScreen = ({
     setLoading(true);
     setError('');
     try {
-      const result = await startPlatformLogin(platformName, phone.trim());
+      // Format phone with country code: 554439668 → +994554439668
+      const formattedPhone = phone.startsWith('+') ? phone : `+994${phone.trim()}`;
+      const result = await startPlatformLogin(platformName, formattedPhone);
       setSessionId(result.sessionId);
       setStep('otp');
     } catch (err) {
@@ -68,7 +70,9 @@ export const PlatformConnectionScreen = ({
     setLoading(true);
     setError('');
     try {
-      await verifyPlatformOtp(platformName, phone.trim(), otpCode);
+      // Format phone with country code: 554439668 → +994554439668
+      const formattedPhone = phone.startsWith('+') ? phone : `+994${phone.trim()}`;
+      await verifyPlatformOtp(platformName, formattedPhone, otpCode);
       setStep('success');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Verification failed');
