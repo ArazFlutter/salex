@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.next
+.env.local
+.git
+.gitignore
+README.md
+.claude
+.vercel
+.DS_Store
+*.log
+dist
+build
+.turbo
