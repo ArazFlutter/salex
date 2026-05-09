@@ -3,9 +3,9 @@
  * `otp_sessions.is_current` row (not HTTP cookies), so GET /me alone is not
  * enough to know this client "logged in" — we only trust hydration when the id matches.
  */
+export const APP_VERSION = '1.0.1'; // Increment this to force cache invalidation
 export const CLIENT_USER_ID_KEY = 'salex_client_user_id';
 export const APP_VERSION_KEY = 'salex_app_version';
-export const APP_VERSION = '1.0.0'; // Increment this to force cache invalidation
 
 export function getStoredClientUserId(): string | null {
   if (typeof window === 'undefined') {
