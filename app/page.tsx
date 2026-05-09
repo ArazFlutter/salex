@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BottomNav } from '@/components/ui/BottomNav';
+import { LoadingScreen } from '@/components/screens/LoadingScreen';
 import { StartScreen } from '@/components/screens/StartScreen';
 import { LanguageScreen } from '@/components/screens/LanguageScreen';
 import { OnboardingScreen } from '@/components/screens/OnboardingScreen';
@@ -129,6 +130,7 @@ export default function SalexAppWrapper() {
 
 function SalexApp() {
   const { t, language } = useLanguage();
+  const [isHydrating, setIsHydrating] = useState(true);
   const [screen, setScreen] = useState<Screen>('start');
   const [platformEntries, setPlatformEntries] = useState<PlatformEntry[]>([]);
   const [planCatalog, setPlanCatalog] = useState<PlanCatalogPlans | null>(null);
@@ -299,6 +301,9 @@ function SalexApp() {
           clearStoredClientUserId();
           setScreen('start');
         }
+      } finally {
+        // Complete hydration (success or error) — now safe to render app
+        setIsHydrating(false);
       }
     };
 
@@ -849,6 +854,10 @@ function SalexApp() {
         break;
     }
   };
+
+  if (isHydrating) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div className="max-w-[430px] mx-auto min-h-screen bg-[#F7F8FC] relative shadow-2xl overflow-hidden">
