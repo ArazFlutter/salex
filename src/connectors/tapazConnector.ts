@@ -2430,6 +2430,65 @@ export class TapazConnector extends BaseConnector {
   }
 
   // =========================================================================
+  //  Public — Platform Connection (Phone + OTP flow)
+  // =========================================================================
+
+  /**
+   * Start login: open form, enter phone, trigger OTP.
+   * Returns authFramePath for use with completeLoginWithOtp.
+   */
+  async startLoginWithPhone(
+    driver: WebDriver,
+    phone: string,
+    timeoutMs: number,
+  ): Promise<{ success: boolean; authFramePath?: TapAuthFramePath }> {
+    try {
+      await driver.get(LOGIN_URL);
+      await waitForPageLoad(driver, timeoutMs);
+
+      const loginOpened = await this.openLoginForm(driver, timeoutMs);
+      if (!loginOpened) return { success: false };
+
+      const authFramePath = await this.enterPhoneNumber(driver, phone, timeoutMs);
+      const otpRequested = await this.submitPhoneForOtp(driver, timeoutMs, authFramePath, phone);
+
+      if (!otpRequested) return { success: false };
+
+      return { success: true, authFramePath };
+    } catch (err) {
+      console.error('[tapaz] startLoginWithPhone error:', err);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Complete login: enter OTP, submit, verify success.
+   * Returns success status.
+   */
+  async completeLoginWithOtp(
+    driver: WebDriver,
+    otp: string,
+    authFramePath: TapAuthFramePath,
+    timeoutMs: number,
+  ): Promise<boolean> {
+    try {
+      const otpEntered = await this.enterOtpCode(driver, otp, timeoutMs, authFramePath);
+      if (!otpEntered) return false;
+
+      await this.submitOtpVerification(driver, timeoutMs, authFramePath);
+      const success = await this.waitForLoginSuccess(driver, timeoutMs);
+
+      if (success) {
+        await driver.switchTo().defaultContent();
+      }
+      return success;
+    } catch (err) {
+      console.error('[tapaz] completeLoginWithOtp error:', err);
+      return false;
+    }
+  }
+
+  // =========================================================================
   //  Private — generic helpers
   // =========================================================================
 

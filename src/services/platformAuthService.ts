@@ -7,10 +7,13 @@ import { saveSession } from './platformSessionService';
 
 /**
  * In-memory store for ongoing login sessions.
- * Maps "userId:platformId" → driver instance
+ * Maps "userId:platformId" → driver + auth state
  * Cleaned up after OTP verification or timeout.
  */
-const activeLogins = new Map<string, { userId: string; platformId: PlatformId; phone: string; createdAt: number }>();
+const activeLogins = new Map<
+  string,
+  { userId: string; platformId: PlatformId; phone: string; driver: any; authFramePath?: any; createdAt: number }
+>();
 
 const LOGIN_SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -45,54 +48,49 @@ export async function startPlatformLogin(
     throw new AppError('Phone number is required', 400);
   }
 
-  try {
-    log.info('platform_auth.start_login', { userId, platformId, phone: masked(phone) });
+  let driver: any = null;
 
-    // Create a new Selenium session
-    const driver = await buildChromeDriver('TAPAZ');
+  try {
+    log.info('platform_auth.start_login', { userId, platformId, phone: masked(normalized) });
+
+    // Create Selenium driver
+    driver = await buildChromeDriver('TAPAZ');
     const timeoutMs = getSeleniumTimeout('TAPAZ');
 
-    // Instantiate the connector
-    const connector = new TapazConnector();
+    // Call appropriate connector based on platform
+    let result: { success: boolean; authFramePath?: any };
 
-    // Start the login flow (enter phone, trigger OTP)
-    // This uses the connector's private performLogin which needs to be made accessible
-    // For now, we'll call ensureAuthenticated which handles full auth
-    // But we need to modify the connector to expose login methods
+    if (platformId === 'tapaz') {
+      const connector = new TapazConnector();
+      result = await connector.startLoginWithPhone(driver, normalized, timeoutMs);
+    } else {
+      throw new AppError('Platform connector not yet implemented', 501);
+    }
 
-    // Store the session temporarily
+    if (!result.success) {
+      await driver.quit().catch(() => {});
+      throw new AppError('Failed to start login. Check phone number and try again.', 400);
+    }
+
+    // Store session with driver for OTP verification
     activeLogins.set(sessionKey, {
       userId,
       platformId,
       phone: normalized,
+      driver,
+      authFramePath: result.authFramePath,
       createdAt: Date.now(),
     });
 
-    // Trigger phone entry and OTP request
-    try {
-      // ensureAuthenticated tries to use stored cookies first, then logs in
-      // We need a fresh login, so we'll need to modify the connector
-      // For now, let's use a workaround: call performLogin directly (make it public)
+    log.info('platform_auth.otp_requested', { userId, platformId, phone: masked(normalized) });
 
-      // This will require modifying TapAZ connector to expose performLogin
-      // For MVP, we'll just return success and expect OTP to complete the flow
-
-      log.info('platform_auth.otp_requested', { userId, platformId, phone: masked(phone) });
-
-      return {
-        success: true,
-        message: 'Verification code sent to your phone. Please enter it to complete connection.',
-        sessionId: sessionKey,
-      };
-    } catch (error) {
-      activeLogins.delete(sessionKey);
-      await driver.quit().catch(() => {});
-      throw new AppError(
-        error instanceof Error ? error.message : 'Failed to start login flow',
-        500,
-      );
-    }
+    return {
+      success: true,
+      message: 'Verification code sent to your phone. Please enter it to complete connection.',
+      sessionId: sessionKey,
+    };
   } catch (error) {
+    if (driver) await driver.quit().catch(() => {});
     activeLogins.delete(sessionKey);
     throw error;
   }
@@ -124,6 +122,7 @@ export async function verifyPlatformOtp(
   // Check timeout
   if (Date.now() - loginSession.createdAt > LOGIN_SESSION_TIMEOUT_MS) {
     activeLogins.delete(sessionKey);
+    loginSession.driver?.quit().catch(() => {});
     throw new AppError('Login session expired. Please start again.', 408);
   }
 
@@ -132,27 +131,32 @@ export async function verifyPlatformOtp(
     throw new AppError('OTP is required', 400);
   }
 
-  let driver: any = null;
+  const driver = loginSession.driver;
 
   try {
     log.info('platform_auth.verify_otp', { userId, platformId, phone: masked(phone) });
 
-    // Create or reuse driver
-    driver = await buildChromeDriver('TAPAZ');
     const timeoutMs = getSeleniumTimeout('TAPAZ');
+    let success = false;
 
-    // Instantiate connector and complete login
-    const connector = new TapazConnector();
+    // Submit OTP via appropriate connector
+    if (platformId === 'tapaz') {
+      const connector = new TapazConnector();
+      const authFramePath = loginSession.authFramePath;
+      if (!authFramePath) {
+        throw new AppError('Invalid session state: missing authFramePath', 500);
+      }
+      success = await connector.completeLoginWithOtp(driver, otpTrimmed, authFramePath, timeoutMs);
+    } else {
+      throw new AppError('Platform connector not yet implemented', 501);
+    }
 
-    // This requires calling the private performLogin or similar
-    // For MVP, we mock success and save empty cookies
-    // In production, we'd call: await connector.performLogin(driver, timeoutMs, phone);
-    // And then: await connector.submitOtp(driver, timeoutMs, otp);
+    if (!success) {
+      throw new AppError('OTP verification failed. Please try again.', 400);
+    }
 
-    // For now, extract cookies (mocked)
+    // Extract and save cookies
     await persistSessionCookies(driver, userId, platformId);
-
-    // Save session as valid
     await saveSession(userId, platformId, []);
 
     activeLogins.delete(sessionKey);
@@ -171,10 +175,12 @@ export async function verifyPlatformOtp(
       error: error instanceof Error ? error.message : String(error),
     });
 
-    throw new AppError(
-      error instanceof Error ? error.message : 'OTP verification failed',
-      400,
-    );
+    throw error instanceof AppError
+      ? error
+      : new AppError(
+          error instanceof Error ? error.message : 'OTP verification failed',
+          400,
+        );
   } finally {
     if (driver) {
       await driver.quit().catch(() => {});
