@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { motion } from 'motion/react';
-import { User, Phone, Store, CreditCard, LogOut, ChevronRight, Link as LinkIcon, Globe, Headset, ShieldCheck } from 'lucide-react';
+import { User, Phone, Store, CreditCard, LogOut, ChevronRight, Link as LinkIcon, Globe, Headset, ShieldCheck, Loader2 } from 'lucide-react';
 import { useLanguage, type Language } from '@/contexts/LanguageContext';
 import { getPlanLabel, type AccountType, type PlanId, type UserProfile } from '@/lib/app-state';
+import { devResetMySession, ApiError } from '@/lib/api';
 
 interface ProfileScreenProps {
   onNavigate: (screen: string) => void;
@@ -64,6 +65,7 @@ export const ProfileScreen = ({
   const isPriorityLane = prioritySupportEntitlement;
   const [isEditing, setIsEditing] = useState(false);
   const [draftProfile, setDraftProfile] = useState<UserProfile>(profile);
+  const [devResetting, setDevResetting] = useState(false);
 
   useEffect(() => {
     setDraftProfile(profile);
@@ -84,6 +86,21 @@ export const ProfileScreen = ({
       ...current,
       accountType,
     }));
+  };
+
+  const handleDevReset = async () => {
+    setDevResetting(true);
+    try {
+      await devResetMySession();
+      // Clear localStorage
+      if (typeof window !== 'undefined') {
+        window.localStorage.clear();
+        window.location.href = '/';
+      }
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : 'Reset failed');
+      setDevResetting(false);
+    }
   };
 
   return (
@@ -256,6 +273,17 @@ export const ProfileScreen = ({
           <ChevronRight className="text-[#6B7280]" size={20} />
         </Card>
       </div>
+
+      {process.env.NODE_ENV !== 'production' && (
+        <Button
+          variant="ghost"
+          onClick={handleDevReset}
+          disabled={devResetting}
+          className="w-full mb-3 text-orange-600 border-orange-200 hover:bg-orange-50"
+        >
+          {devResetting ? <Loader2 size={20} className="animate-spin mr-2" /> : '🔧'} Dev: Reset Session
+        </Button>
+      )}
 
       <Button
         variant="ghost"

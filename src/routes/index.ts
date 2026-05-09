@@ -7,6 +7,7 @@ import { packagesRouter } from './packages';
 import { paymentsRouter } from './payments';
 import { platformsRouter } from './platforms';
 import { publishRouter } from './publish';
+import { devRouter } from './dev';
 
 const apiRouter = Router();
 
@@ -18,5 +19,6 @@ apiRouter.use('/packages', packagesRouter);
 apiRouter.use('/payments', paymentsRouter);
 apiRouter.use('/platforms', platformsRouter);
 apiRouter.use('/publish', publishRouter);
+apiRouter.use('/dev', devRouter);
 
 export { apiRouter };

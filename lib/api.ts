@@ -262,3 +262,9 @@ export function createPublishJob(listingId: string) {
 export function getPublishJobStatus(jobId: string) {
   return api.get<PublishStatusResponse>(`/publish/${jobId}/status`);
 }
+
+// ── Dev ──
+
+export function devResetMySession() {
+  return api.post<{ success: boolean; message: string }>('/dev/reset-my-session');
+}
