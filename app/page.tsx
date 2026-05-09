@@ -241,21 +241,28 @@ function SalexApp() {
     }
   }, []);
 
+  // Hydrate on mount: ALWAYS call /api/me first to get fresh user data
+  // If user is not authenticated or data doesn't match local storage, clear everything
   useEffect(() => {
     const hydrateFromApi = async () => {
       try {
-        const clientUserId = getStoredClientUserId();
+        // FIRST: Always fetch fresh user data from /api/me
         const userData = await getMe();
         const user = userData.user;
+
+        // SECOND: Check if this matches stored session
+        const clientUserId = getStoredClientUserId();
 
         // Backend "session" is a single global otp_sessions row, not per-browser cookies.
         // Only treat GET /me as this client's session when it matches the user id we stored at OTP success.
         if (!clientUserId || user.id !== clientUserId) {
           clearAllSession();
           clearStoredClientUserId();
+          // Show StartScreen (stay on 'start')
           return;
         }
 
+        // User is authenticated and matches stored session: hydrate app state
         setProfile({
           id: user.id,
           fullName: user.fullName,
@@ -281,15 +288,17 @@ function SalexApp() {
         const bootScreens: Screen[] = ['start', 'language', 'onboarding'];
         setScreen((prev) => (bootScreens.includes(prev as Screen) ? 'dashboard' : prev));
       } catch (err) {
-        if (err instanceof ApiError && err.statusCode === 401) {
-          // Clear all session data on auth failure
+        if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 403)) {
+          // User not authenticated: clear everything and show StartScreen
           clearAllSession();
           clearStoredClientUserId();
+          setScreen('start');
         } else {
-          // Clear cached data on any API error to prevent stale data
+          // Any other error: clear cached data to prevent stale state
           clearAllSession();
+          clearStoredClientUserId();
+          setScreen('start');
         }
-        // not authenticated — stay on current screen (typically start)
       }
     };
 
