@@ -251,6 +251,8 @@ function SalexApp() {
         // Backend "session" is a single global otp_sessions row, not per-browser cookies.
         // Only treat GET /me as this client's session when it matches the user id we stored at OTP success.
         if (!clientUserId || user.id !== clientUserId) {
+          clearAllSession();
+          clearStoredClientUserId();
           return;
         }
 
