@@ -25,3 +25,10 @@ export function clearStoredClientUserId(): void {
   }
   window.localStorage.removeItem(CLIENT_USER_ID_KEY);
 }
+
+export function clearAllSession(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  localStorage.clear();
+}

@@ -54,6 +54,7 @@ import {
 } from '@/lib/api';
 import {
   clearStoredClientUserId,
+  clearAllSession,
   getStoredClientUserId,
   setStoredClientUserId,
 } from '@/lib/clientSession';
@@ -279,7 +280,12 @@ function SalexApp() {
         setScreen((prev) => (bootScreens.includes(prev as Screen) ? 'dashboard' : prev));
       } catch (err) {
         if (err instanceof ApiError && err.statusCode === 401) {
+          // Clear all session data on auth failure
+          clearAllSession();
           clearStoredClientUserId();
+        } else {
+          // Clear cached data on any API error to prevent stale data
+          clearAllSession();
         }
         // not authenticated — stay on current screen (typically start)
       }
@@ -573,6 +579,7 @@ function SalexApp() {
     } catch {
       // Clear local binding regardless so this tab does not re-hydrate into another user's global session.
     }
+    clearAllSession();
     clearStoredClientUserId();
 
     setScreen('start');
