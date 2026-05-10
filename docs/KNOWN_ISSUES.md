@@ -1,49 +1,49 @@
-# Known Issues & Roadmap — SALex
+# Məlum Problemlər və Yol Xəritəsi — SALex
 
-Critical bugs, design flaws, and items that need fixing. Organized by priority.
+Kritik xətalar, dizayn çatışmamazlıqları və düzəlişə ehtiyac olan elementlər. Prioritet əsasında təşkil olunmuşdur.
 
 ---
 
-## 🔴 CRITICAL
+## 🔴 KRİTİK
 
-### 1. Authentication: OTP System is Unreliable
+### 1. Autentifikasiya: OTP Sistemi Qeyri-etibarlı
 
-**Status:** Broken on production; needs migration
+**Vəziyyət:** Produksiyada pozulmuş; Telegram `initData` + JWT-yə miqrasiya lazımdır
 
 **Problem:**
-- Current system uses SMS OTP verification
-- OTP code is **logged in plaintext** to server logs (`otpService.ts`)
-- SMS delivery is unreliable (slow, blocked, missing)
-- Global session model (not per-device/browser tab)
-- No proper session tokens (uses DB flag `is_current`)
+- Cari sistem SMS OTP yoxlamadan istifadə edir
+- OTP kodu **loqlara açıq şəkildə yazılır** (`otpService.ts`)
+- SMS çatdırılması qeyri-etibarlı (yavaş, bağlı, çatmayan)
+- Qlobal sesiya modeli (cihaz/brauzer tabı başına deyil)
+- Düzgün sesiya tokenləri yoxdur (DB bayrağı `is_current` istifadə edir)
 
-**Current Code:**
+**Cari Kod:**
 ```typescript
 // src/services/otpService.ts
-log.info('auth.otp.sent', { phone, code }); // ❌ Plaintext code logged!
+log.info('auth.otp.sent', { phone, code }); // ❌ Açıq kod yazılıb!
 ```
 
-**Why It Needs to Change:**
-- App runs inside **Telegram** → user is already authenticated there
-- No need for SMS; Telegram provides `initData` signed proof
-- JWT tokens are more secure and scalable than DB session flags
+**Niyə Dəyişməli:**
+- Applikasiya **Telegram**-ın içində çalışır → istifadəçi artıq orada autentifikasiyalanıb
+- SMS lazım deyil; Telegram imzalı `initData` sübut əmn
+- JWT tokenləri DB sesiya bayraqlarından daha təhlükəsiz və miqyaslanabilir
 
-**Solution (Telegram initData + JWT):**
+**Həll (Telegram initData + JWT):**
 
-1. **Remove SMS dependency:**
-   - Frontend: Access `window.Telegram.WebApp.initData`
-   - Send to backend: `POST /api/auth/telegram { initData }`
+1. **SMS asılılığını silin:**
+   - Frontend: `window.Telegram.WebApp.initData` əlçat edin
+   - Backend-ə göndərin: `POST /api/auth/telegram { initData }`
 
-2. **Backend verifies signature:**
+2. **Backend imzanı yoxlayır:**
    ```typescript
-   // Using Telegram bot token
+   // Telegram bot tokenindən istifadə edərək
    const isValid = verifyTelegramWebAppData(initData, BOT_TOKEN);
    if (!isValid) return 401;
    
    const userId = parseTelegramUser(initData).id;
    ```
 
-3. **Issue JWT token:**
+3. **JWT token verim:**
    ```typescript
    const token = jwt.sign(
      { userId, iat: Date.now() },
@@ -52,186 +52,186 @@ log.info('auth.otp.sent', { phone, code }); // ❌ Plaintext code logged!
    );
    ```
 
-4. **Client stores token:**
+4. **Klient tokeni saxlayır:**
    ```typescript
    localStorage.setItem('auth_token', token);
-   // Include in all requests: Authorization: Bearer <token>
+   // Bütün sorğulara daxil et: Authorization: Bearer <token>
    ```
 
-5. **Delete OTP tables & code:**
-   - Drop `otp_sessions` table
-   - Remove `src/services/otpService.ts`
-   - Simplify auth logic
+5. **OTP cədvəllərini silin:**
+   - `otp_sessions` cədvəlini burax
+   - `src/services/otpService.ts` silin
+   - Auth məntiqini sadələşdir
 
-**Benefits:**
-- ✅ No SMS dependency
-- ✅ Instant verification (Telegram already verified user)
-- ✅ More secure (signed tokens, not DB flags)
-- ✅ Per-device tokens (JWT with ID)
-- ✅ Better mobile UX (no OTP waiting)
-- ✅ Logs won't expose credentials
+**Faydaları:**
+- ✅ SMS asılılığı yoxdur
+- ✅ Ani yoxlama (Telegram istifadəçi artıq yoxlamışdır)
+- ✅ Daha təhlükəsiz (imzalı tokenləri, DB bayraqları deyil)
+- ✅ Cihaz başına tokenləri (JWT ID-li)
+- ✅ Daha yaxşı mobil UX (OTP gözləməsi yoxdur)
+- ✅ Loglar etimadnamelər ekspos etməyəcək
 
-**Effort:** ~2-3 days (1 day backend, 1 day frontend, 1 day testing)
+**Əmək Xərcləri:** ~2-3 gün (1 gün backend, 1 gün frontend, 1 gün sınaq)
 
-**Files to Change:**
-- `src/routes/auth.ts` — New `/api/auth/telegram` endpoint
-- `src/services/userService.ts` — JWT verification instead of session lookup
-- `src/middleware/authenticate.ts` — Check JWT instead of session flag
-- `app/page.tsx` — Use Telegram initData, store JWT in localStorage
-- `lib/api.ts` — Include JWT in all API requests
+**Dəyiştirilməli Fayllar:**
+- `src/routes/auth.ts` — Yeni `/api/auth/telegram` nöqtə
+- `src/services/userService.ts` — Sesiya lookupa əvəzinə JWT yoxlaması
+- `src/middleware/authenticate.ts` — Sesiya bayrağı əvəzinə JWT yoxla
+- `app/page.tsx` — Telegram initData istifadə et, JWT localStorage-də saxla
+- `lib/api.ts` — Bütün API sorğularına JWT daxil et
 
-**Testing:**
-- Unit tests for Telegram signature verification
-- E2E test with real Telegram Mini App (dev mode)
-- Verify logout clears token
+**Sınaq:**
+- Telegram imzasının yoxlanılması üçün unit testləri
+- Həqiqi Telegram Mini App-ında E2E sınaq (dev rejimi)
+- Çıxışın tokeni təmizlədiyini doğrula
 
 ---
 
-### 2. Puppeteer/Selenium on Railway: Chrome Not Working Reliably
+### 2. Railway-dəki Puppeteer/Selenium: Chrome Etibarlı Şəkildə İşləmir
 
-**Status:** Partially working; crashes on complex sites
+**Vəziyyət:** Qismən işləyir; mürəkkəb saytlarda qəza edir
 
 **Problem:**
-- Railway environment may not have Chrome/Chromium properly configured
-- Selenium connectors fail to:
-  - Find buttons (selector issues)
-  - Login to platforms (CDP timeouts)
-  - Fill forms (JavaScript injection failures)
-- **Error messages:**
+- Railway mühitində Chrome/Chromium düzgün qonfigur olmaya bilər
+- Selenium konnektorları uğursuz olur:
+  - Düymə tapılmır (selector problemləri)
+  - Bazarlara daxil olmaqda uğursuz (CDP timeout-ları)
+  - Formları doldurmaqda uğursuz (JavaScript injection uğursuzluqları)
+- **Xəta Mesajları:**
   - `ChromeDriver version mismatch`
-  - `Button not found: Daxil ol` (Tap.az "Login" button)
+  - `Button not found: Daxil ol` (Tap.az "Login" düyməsi)
   - `Chrome process crashed`
 
-**Current Workarounds:**
-- `CHROME_BIN` env var to specify Chrome path
-- `clickByText()` helper added for more reliable button finding
-- Debug mode: `TAPAZ_DEBUG_REQUEST_LOG=1` to log network calls
-- CDP body rewrite with heuristics: `TAPAZ_LOGIN_FETCH_OVERRIDE`
+**Cari Workaround-lar:**
+- `CHROME_BIN` env var Chrome yolunu təyin etməsi
+- `clickByText()` köməkçi daha etibarlı düymə tapmaması üçün əlavə olunmuş
+- Debug rejimi: `TAPAZ_DEBUG_REQUEST_LOG=1` şəbəkə çağırılarını loqla
+- CDP gövdə yenidən yazma euristika ilə: `TAPAZ_LOGIN_FETCH_OVERRIDE`
 
-**Why It Still Breaks:**
-1. **Version skew:** Installed Chrome ≠ chromedriver version
-2. **Railway sandbox limitations:** Chrome needs more system resources
-3. **Platform updates:** Marketplaces change UI/API; selectors become stale
-4. **Headless limitations:** Some sites detect and block headless Chrome
+**Niyə Hələ Qırılır:**
+1. **Versiya fərqi:** Quraşdırılmış Chrome ≠ chromedriver versiyası
+2. **Railway sandbox məhdudiyyətləri:** Chrome daha çox sistem resursuna ehtiyaç duyur
+3. **Platform yenilmələri:** Bazarlar UI/API dəyişdirirlər; selectorlər köhnələşir
+4. **Headless məhdudiyyətləri:** Bəzi saytlar headless Chrome-u aşkar edir və blok edir
 
-**Solution (Two Options):**
+**Həll (İki Seçənək):**
 
-**Option A: Use Puppeteer on Railway (Recommended)**
-- More reliable for headless automation
-- Built-in Chrome bundling (correct version)
-- Better handling of JavaScript-heavy sites
-- Replace Selenium with Puppeteer
+**Seçənək A: Railway-da Puppeteer istifadə edin (Tövsiyə Olunur)**
+- Headless avtomasyonu üçün daha etibarlı
+- Quraşdırılmış Chrome bundling (düzgün versiya)
+- JavaScript-ağır saytların daha yaxşı idarəçiliyi
+- Selenium-u Puppeteer ilə dəyişdir
 
-**Steps:**
-1. Install: `npm install puppeteer`
-2. Rewrite connectors:
+**Addımlar:**
+1. Quraşdırın: `npm install puppeteer`
+2. Konnektorları yenidən yazın:
    ```typescript
-   // Old (Selenium)
+   // Köhnə (Selenium)
    const driver = buildChromeDriver();
    await driver.findElement(By.css('input[name=phone]')).sendKeys(phone);
    
-   // New (Puppeteer)
+   // Yeni (Puppeteer)
    const browser = await puppeteer.launch();
    const page = await browser.newPage();
    await page.goto(url);
    await page.$eval('input[name=phone]', el => el.value = phone);
    await page.click('button:contains("Login")');
    ```
-3. Test on Railway locally (Railway CLI)
-4. Update env vars (`PUPPETEER_EXECUTABLE_PATH`)
+3. Railway-da yerli sınaq (Railway CLI)
+4. Env varlarını yeniləyin (`PUPPETEER_EXECUTABLE_PATH`)
 
-**Option B: Use Separate Service**
-- Deploy a dedicated Selenium/Chrome service on another platform
-- SALex backend calls via API: `POST https://selenium-service.railway.app/publish { platform, listing }`
-- Pros: Isolated; easier scaling
-- Cons: More complex; adds latency
+**Seçənək B: Ayrı Xidmətindən istifadə edin**
+- Başqa platformada ayrı Selenium/Chrome xidmətini deploy edin
+- SALex backend API vasitəsilə çağırır: `POST https://selenium-service.railway.app/publish { platform, listing }`
+- Artılar: İzolə; daha asan miqyas
+- Mənfilər: Daha mürəkkəb; gecikmə əlavə edir
 
-**Effort (Option A):** ~3-4 days (rewrite connectors, test each platform)
+**Əmək Xərcləri (Seçənək A):** ~3-4 gün (konnektorları yenidən yaz, hər platform sınaq)
 
-**Files to Change:**
-- `src/connectors/seleniumSession.ts` → Replace with Puppeteer
-- `src/connectors/tapazConnector.ts`, etc. — Rewrite using puppeteer API
-- `.env.example` — Update Chrome/Puppeteer env vars
-- `Dockerfile` (if using) — Ensure Puppeteer dependencies included
+**Dəyiştirilməli Fayllar:**
+- `src/connectors/seleniumSession.ts` → Puppeteer ilə dəyişdir
+- `src/connectors/tapazConnector.ts` və s. — Puppeteer API istifadə edərək yenidən yaz
+- `.env.example` — Chrome/Puppeteer env varlarını yeniləyin
+- `Dockerfile` (istifadə olunarsa) — Puppeteer asılılıqlarını təmin edin
 
-**Testing:**
-- Run connectors locally with `npm run smoke:publish-connectors`
-- Deploy to Railway dev env; test with each marketplace
-- Test with headless=true and headless=false
-
----
-
-### 3. Telegram Mini App Shows Old (Stale) User Data After DB Truncate
-
-**Status:** Fixed (v1.0.1 hydration + cache-bust)
-
-**Problem (Historical):**
-- DB was truncated (all users deleted)
-- `/api/me` returned 401 (correct)
-- BUT: Telegram Mini App showed old registration data
-- Root cause: Telegram WebView aggressively caches localStorage + React state
-
-**Solutions Applied:**
-1. **Hydration guard (v1.0.0):**
-   - Added `isHydrating` state
-   - Block all UI rendering until `/api/me` completes
-   - Show `LoadingScreen` while hydrating
-   - Prevents flash of stale UI
-
-2. **Cache-busting (v1.0.1):**
-   - Bumped `APP_VERSION` from implicit to explicit '1.0.1'
-   - `invalidateStaleAppVersion()` detects version change
-   - Clears all localStorage on version mismatch
-   - Forces Telegram to refresh on next open
-
-**Why It Was an Issue:**
-- Telegram caches localStorage even after `browser.clear()`
-- React component rendered immediately with initial state
-- Frontend didn't wait for `/api/me` before showing data
-
-**Result:**
-- ✅ No more stale data flashing
-- ✅ Version bump triggers cache clear
-- ✅ Users always see fresh state
-
-**Long-term Fix:**
-- JWT-based auth (no localStorage dependency)
-- Tokens stored in memory or httpOnly cookies
-- No persistent stale state
+**Sınaq:**
+- `npm run smoke:publish-connectors` ilə konnektorları yerli çalıştırın
+- Railway dev mühitinə deploy; hər bazar ilə sınaq
+- headless=true və headless=false ilə sınaq
 
 ---
 
-## 🟡 MEDIUM
+### 3. Telegram Mini App DB Truncate-dan Sonra Köhnə (Stale) İstifadəçi Məlumatı Göstərir
 
-### 4. Platform Publish Not Tested End-to-End
+**Vəziyyət:** Düzəldilmiş (v1.0.1 hydration + cache-bust)
 
-**Status:** Partially works; needs E2E testing
+**Problem (Tarix):**
+- DB truncate edildi (bütün istifadəçilər silindi)
+- `/api/me` 401 qaytardı (düzgün)
+- BUT: Telegram Mini App köhnə qeydiyyat məlumatını göstərdi
+- Kök səbəb: Telegram WebView localStorage-i agresiv şəkildə keşir + React state
+
+**Tətbiq Olunan Həllər:**
+1. **Hydration Qəfili (v1.0.0):**
+   - `isHydrating` state əlavə edin
+   - `/api/me` tamamlanana qədər bütün UI render etməyi blok edin
+   - Hydration zamanı `LoadingScreen` göstərin
+   - Stale UI flaşının məqsidinə bağlamasını qeyd et
+
+2. **Keş-Busting (v1.0.1):**
+   - `APP_VERSION` implicit-dən explicit '1.0.1'-ə qaldır
+   - `invalidateStaleAppVersion()` versiya dəyişikliyini aşkar edir
+   - Versiya fərqində localStorage-in hamısını təmizlə
+   - Telegram-a sonrakı açmada yeniləməsi üçün məcbur et
+
+**Niyə Bir Problemdir:**
+- Telegram localStorage-i `browser.clear()` sonra da keşir
+- React komponenti dərhal initial state ilə render edir
+- Frontend `/api/me` tamamlanana qədər məlumatları göstərmədən əvvəl gözləmir
+
+**Nəticə:**
+- ✅ Stale məlumat flaşı yoxdur
+- ✅ Versiya nəhü keşi təmizləyir
+- ✅ İstifadəçilər həmişə sıx vəziyyət görürlər
+
+**Long-term Həll:**
+- JWT-dən əsaslandırılmış autentifikasiya (localStorage asılılığı yoxdur)
+- Tokenləri memory-də və ya httpOnly cookies-də saxla
+- Persistent stale vəziyyət yoxdur
+
+---
+
+## 🟡 ORTA
+
+### 4. Platform Yayımı Sona Qədər Sınaqdan Keçmədi
+
+**Vəziyyət:** Qismən işləyir; E2E sınaq lazımdır
 
 **Problem:**
-- Tap.az & Lalafo: Connectors exist, tested manually
-- Alan.az, Laylo.az, Birja.com: **Connector stubs only**
-- No automated E2E tests (publish → verify listing appears on marketplace)
-- Manual testing is time-consuming; breaks with UI changes
+- Tap.az & Lalafo: Konnektorlar mövcuddur, yerli sınaqdan keçmiş
+- Alan.az, Laylo.az, Birja.com: **Konnektoru skeletləri yalnız**
+- Heç bir avtomatlaşdırılmış E2E sınaqu yoxdur (yayımla → bazarda siyahı görünməsini doğrula)
+- Yerli sınaq vaxt aparıcı; UI dəyişiklikləri pozulur
 
-**What's Missing:**
-- [ ] Complete Alan.az connector (`src/connectors/alanaConnector.ts`)
-- [ ] Complete Laylo.az connector
-- [ ] Complete Birja.com connector
-- [ ] E2E test suite: `npm run test:e2e` (publish to all 5 platforms, verify URLs)
-- [ ] CI/CD pipeline to run tests on each deploy
+**Nə Çatışmır:**
+- [ ] Tam Alan.az konnektoru (`src/connectors/alanaConnector.ts`)
+- [ ] Tam Laylo.az konnektoru
+- [ ] Tam Birja.com konnektoru
+- [ ] E2E sınaq yığını: `npm run test:e2e` (bütün 5 bazara yayımla, URL-ləri doğrula)
+- [ ] CI/CD pipeline hər deployment-dən əvvəl testləri çalıştırması
 
-**Solution:**
-1. **Implement missing connectors:** Copy Tap.az/Lalafo, adapt to each platform's flow
-2. **Write E2E tests:**
+**Həll:**
+1. **Çatışan konnektorları tətbiq edin:** Tap.az/Lalafo kopyala, hər platformaya uyğunlaştır
+2. **E2E testləri yaz:**
    ```bash
-   # E2E test: Create listing, publish to all 5 platforms, verify URLs
+   # E2E sınaq: Siyahı yaratma, bütün 5 bazara yayımla, URL-ləri doğrula
    npm run test:e2e
    ```
-3. **Add to CI:** GitHub Actions runs E2E before deploy to production
+3. **CI-yə əlavə edin:** GitHub Actions produksiyaya deployment əvvəl E2E çalıştırır
 
-**Effort:** ~4-5 days (1-2 days per connector, 1 day test framework)
+**Əmək Xərcləri:** ~4-5 gün (konnektoru başına 1-2 gün, sınaq framework üçün 1 gün)
 
-**Files to Create:**
+**Yaradılacaq Fayllar:**
 - `src/connectors/alanaConnector.ts`
 - `src/connectors/layloConnector.ts`
 - `src/connectors/birjacomConnector.ts`
@@ -240,11 +240,11 @@ log.info('auth.otp.sent', { phone, code }); // ❌ Plaintext code logged!
 
 ---
 
-### 5. Alan.az & Birja.com Connectors Not Implemented
+### 5. Alan.az & Birja.com Konnektorları Tətbiq Olunmadı
 
-**Status:** Stub only; no functionality
+**Vəziyyət:** Yalnız skelet; heç bir funksionallıq yoxdur
 
-**Current Code:**
+**Cari Kod:**
 ```typescript
 export class AlanazConnector implements PlatformConnector {
   async publishListing(): Promise<PublishResult> {
@@ -253,29 +253,29 @@ export class AlanazConnector implements PlatformConnector {
 }
 ```
 
-**Why It Matters:**
-- Users can't publish to these platforms (will get "Not implemented" error)
-- Backend returns 400 instead of 5xx, but UX is confusing
+**Niyə Əhəmiyyətli:**
+- İstifadəçilər bu bazarlara yayımla bilmirlər ("Not implemented" xətası alacaqlar)
+- Backend 400 qaytarır, amma UX çaşdırıcıdır
 
-**What Needs to Do:**
-1. **Analyze each platform's UI flow:**
-   - How to login (phone + OTP?)
-   - Where's the listing creation form?
-   - What fields are required?
-   - How to submit & get listing URL?
+**Nə Edilməli:**
+1. **Hər platformanın UI axınını analiz edin:**
+   - Daxil olmaq necə (telefon + OTP?)
+   - Siyahı yaratma forması harada?
+   - Hansı sahələr tələb olunur?
+   - Necə təqdim edib URL almaq?
 
-2. **Implement connector:**
+2. **Konnektoru tətbiq edin:**
    ```typescript
    export class AlanazConnector implements PlatformConnector {
      async publishListing(listing: NormalizedListing): Promise<PublishResult> {
        const driver = buildChromeDriver();
        try {
-         // 1. Navigate to alan.az
-         // 2. Login (similar to Tap.az)
-         // 3. Go to listing creation page
-         // 4. Fill form fields
-         // 5. Submit
-         // 6. Extract listing URL
+         // 1. alan.az-ə keç
+         // 2. Daxil olmaq (Tap.az-a oxşar)
+         // 3. Siyahı yaratma səhifəsinə keç
+         // 4. Form sahələrini doldur
+         // 5. Təqdim et
+         // 6. Siyahı URL-ni çıxar
          return { success: true, url: '...' };
        } catch (err) {
          return { success: false, error: this.normalizeError(err) };
@@ -284,176 +284,176 @@ export class AlanazConnector implements PlatformConnector {
    }
    ```
 
-3. **Test:** Manual testing + E2E suite
+3. **Sınaq:** Yerli sınaq + E2E yığını
 
-**Effort:** ~1-2 days each
+**Əmək Xərcləri:** Hər biri ~1-2 gün
 
-**Files:**
-- `src/connectors/alanaConnector.ts` — ~200 lines
-- `src/connectors/birjacomConnector.ts` — ~200 lines
+**Fayllar:**
+- `src/connectors/alanaConnector.ts` — ~200 sətir
+- `src/connectors/birjacomConnector.ts` — ~200 sətir
 
 ---
 
-### 6. No Real SMS Integration for OTP
+### 6. OTP üçün Həqiqi SMS İnteqrasiyası Yoxdur
 
-**Status:** Partially implemented
+**Vəziyyət:** Qismən tətbiq olunmuş
 
 **Problem:**
-- OTP code is logged to console (`console.log` in dev)
-- No actual SMS provider integrated (Twilio, Vonage, AWS SNS, etc.)
-- Code for real SMS exists but commented out
+- OTP kodu konsola yazılır (`console.log` dev-də)
+- Heç bir SMS provayderı inteqrasiya edilmədi (Twilio, Vonage, AWS SNS, və s.)
+- Həqiqi SMS üçün kod mövcud amma şərh ləstirildi
 
-**Current Flow:**
+**Cari Axın:**
 ```typescript
 // src/services/otpService.ts
-const code = generateRandomCode(); // e.g., '1234'
-log.info('auth.otp.sent', { phone, code }); // Server logs it
-// ❌ No actual SMS sent
+const code = generateRandomCode(); // məs., '1234'
+log.info('auth.otp.sent', { phone, code }); // Server yazır
+// ❌ Həqiqi SMS göndərilmir
 ```
 
-**Why Not Critical:**
-- Works for local dev (read code from logs)
-- Frontend can handle 401 from SMS send failure
+**Niyə Kritik Deyil:**
+- Yerli dev üçün işləyir (loglardan kodu oxu)
+- Frontend SMS göndər uğursuzluğundan 401 idarə edə bilər
 
-**Solution:**
-- Integrate SMS provider (Twilio recommended for Azerbaijan coverage)
-- Move OTP to separate service or job queue
-- **Better:** Skip this entirely; migrate to Telegram auth (see #1)
+**Həll:**
+- SMS provayderini inteqrasiya (Azərbaycan əhatəsi üçün Twilio tövsiyə olunur)
+- OTP-ni ayrı xidmətə və ya iş sırasına keç
+- **Daha yaxşı:** Tamamilə Telegram auth-ə keç (bax #1)
 
-**Effort:** ~2 days (if doing SMS) or 0 days (if migrating to Telegram)
+**Əmək Xərcləri:** ~2 gün (SMS edirsinizsə) və ya 0 gün (Telegram-a keçsənizsə)
 
 ---
 
-## 🟢 LOW PRIORITY
+## 🟢 AŞ PRIORITET
 
-### 7. Worker vs Server Handler Registration
+### 7. İşçi vs Server İdarəçi Qeydiyyatı
 
-**Status:** Works but confusing
+**Vəziyyət:** İşləyir amma çaşdırıcı
 
 **Problem:**
-- `src/server.ts` starts pg-boss and registers handlers
-- `src/queue/worker.ts` also starts pg-boss and registers handlers
-- Running both simultaneously may double-process jobs
-- Unclear which setup to use in production
+- `src/server.ts` pg-boss başlat və idarəçiləri qeydə alır
+- `src/queue/worker.ts` də pg-boss başlat və idarəçiləri qeydə alır
+- Hər ikisini eynilə çalıştırmaq işləri iki dəfə emal etmə riski
+- Produksiyada hansı setup istifadə etməli olduğu aydın deyil
 
-**Current Setup:**
+**Cari Setup:**
 ```bash
-# Option 1: Embedded worker in server
+# Seçənək 1: Server-dəki yerləşdirilmiş işçi
 npm run server:dev
 
-# Option 2: Standalone worker
+# Seçənək 2: Müstəqil işçi
 ENABLE_WORKER_IN_SERVER=false npm run worker:dev
-npm run server:dev (in another terminal)
+npm run server:dev (başqa terminalda)
 ```
 
-**Why It's Confusing:**
-- pg-boss has job locking, so double-processing usually doesn't happen
-- But design is unclear; docs don't explain the choice
-- In production, unclear which is recommended
+**Niyə Çaşdırıcı:**
+- pg-boss iş kilidləməsində; iki dəfə emal adətən baş vermir
+- Lakin dizayn açıq deyil; sənədlər seçimi izah etmir
+- Produksiyada tövsiyə olunanlar hansı aydın deyil
 
-**Best Practice:**
-- Development: Run server with embedded worker (`ENABLE_WORKER_IN_SERVER=true`, default)
-- Production: Separate services
-  - API service: `npm run start` (with worker disabled)
-  - Worker service: Dedicated dyno/service (`ENABLE_WORKER_IN_SERVER=false npm run start`)
+**Ən Yaxşı Təcrübə:**
+- İnkişaf: Server yerləşdirilmiş işçi ilə çalıştırın (`ENABLE_WORKER_IN_SERVER=true`, default)
+- Produksiya: Ayrı xidmətlər
+  - API xidməti: `npm run start` (işçi deaktiv)
+  - İşçi xidməti: Ayrı dyno/xidmət (`ENABLE_WORKER_IN_SERVER=false npm run start`)
 
-**Solution:**
-- Document in README: Decision tree for which option
-- Add comments to `server.ts` explaining when to disable worker
-- Ensure env var `ENABLE_WORKER_IN_SERVER` is honored consistently
+**Həll:**
+- README-dəki sənədlər: Hansı seçənəyi siqnallı qarar ağacı
+- `server.ts`-yə şərhlər əlavə edin seçməni izah edən
+- Env var `ENABLE_WORKER_IN_SERVER` tutarlı olduğuna əmin olun
 
-**Effort:** ~1 day (docs + code review)
+**Əmək Xərcləri:** ~1 gün (sənədlər + kod review)
 
 ---
 
-### 8. Platform Connection Flow Partially Implemented
+### 8. Platform Bağlantısı Axını Qismən Tətbiq Olunmuş
 
-**Status:** Works for Tap.az & Lalafo; needs testing
+**Vəziyyət:** Tap.az & Lalafo üçün işləyir; sınaq lazımdır
 
 **Problem:**
-- Frontend popup for platform connection works
-- Backend stores access tokens in `platform_connections`
-- But tokens aren't used when publishing (re-login instead)
-- Recovery from failed platform connections not tested
+- Frontend popup platform bağlantısı işləyir
+- Backend access tokenləri `platform_connections`-ə saxlayır
+- Amma tokenləri yayımlanarkən istifadə olunmur (əvəzinə yenidən daxil olunur)
+- Uğursuz platform bağlantılarından bərpa sınaqdan keçmədi
 
-**What Works:**
-- User clicks "Connect Tap.az"
-- Popup opens with Selenium login
-- Token extracted and stored
-- Response: "Connected ✓"
+**Nə İşləyir:**
+- İstifadəçi "Tap.az-ı Bağla" klikidir
+- Popup Selenium daxıl olmaqla açılır
+- Token çıxarılır və saxlanılır
+- Cavab: "Bağlandı ✓"
 
-**What Doesn't:**
-- Reusing token on next publish (currently re-logs in every time)
-- Token refresh (if provider supports it)
-- Token expiry & renewal
-- Disconnecting a platform
+**Nə Olmur:**
+- Token sonrakı yayımlanmada yenidən istifadə (hər dəfə yenidən daxil olmaq əvəzinə)
+- Token yeniləmə (provayderdir dəstəkləyirsə)
+- Token müddəti ötmə və yenilənə
+- Platformanı ayırmaq
 
-**Solution:**
-- Modify connector to check `platform_connections` for existing token
-- If valid: Skip login, use token directly
-- If expired: Try refresh_token or re-login
+**Həll:**
+- Mövcud token üçün `platform_connections`-i yoxlamaq konnektoru dəyişdir
+- Əgər etibarlı: Daxıl olmaqdan keç, tokeni birbaşa istifadə et
+- Əgər müddəti ötdi: refresh_token sınaq ve ya yenidən daxil ol
 
-**Effort:** ~1-2 days (per connector)
+**Əmək Xərcləri:** ~1-2 gün (hər konnektorda)
 
 ---
 
-### 9. Recovery Queue & Retry Logic
+### 9. Bərpa Sırası və Təkrar Məntiqləri
 
-**Status:** Implemented but not fully tested
+**Vəziyyət:** Tətbiq olunmuş amma tam sınaqdan keçmədi
 
 **Problem:**
-- Recovery job runs every 10 minutes (`RECOVERY_SCHEDULE_CRON`)
-- Retries failed publishes up to `MAX_RECOVERY_RETRIES`
-- No monitoring/alerting if recovery keeps failing
-- Unclear if recovery handles partial failures correctly
+- Bərpa işi hər 10 dəqiqə çalışır (`RECOVERY_SCHEDULE_CRON`)
+- Uğursuz yayımlamaları `MAX_RECOVERY_RETRIES`-ə qədər yenidən cəhd edir
+- Bərpa davamlı uğursuz olarsa monitorinq/xəbərdarlıq yoxdur
+- Bərpa qismən uğursuzluqları düzgün idarə edib-etmədyi aydın deyil
 
-**What Works:**
-- Scheduled cron job queries failed rows
-- Re-enqueues them
-- Processes with backoff
+**Nə İşləyir:**
+- Cədvəlləşdirilmiş cron iş uğursuz sıraları sorğulamaq
+- Yenidən sırala
+- Backoff ilə emal
 
-**What's Unclear:**
-- Does recovery handle marketplace rate limits?
-- What if a marketplace is down? Keeps retrying forever?
-- How long does recovery take for 1000 failed jobs?
+**Nə Aydın Deyil:**
+- Bərpa bazar dərəcə məhdudiyyətlərini idarə edir mi?
+- Bazar API aşağı olsa necə? Seçənəkləri sona qədər yenidən cəhd et mi?
+- Bərpa 1000 uğursuz iş üçün nə qədər vaxt çəkər?
 
-**Solution:**
-- Add monitoring: Alert if failed_jobs table grows
-- Add backoff: Exponential delay between retries (1m, 5m, 15m, etc.)
-- Add circuit breaker: Stop retrying if marketplace API is down
+**Həll:**
+- Monitorinq əlavə edin: Xəbərdar əgər failed_jobs cədvəli böyüyürsə
+- Backoff əlavə edin: Yenidən cəhd arasında eksponensial gecikmə (1m, 5m, 15m, və s.)
+- Dövrə qaynağı əlavə edin: Bazar API aşağı olarsa yenidən cəhd etməyi dayandır
 
-**Effort:** ~2-3 days
-
----
-
-## 📋 Migration Checklist
-
-When migrating from OTP to Telegram auth:
-
-- [ ] Create new `/api/auth/telegram` endpoint
-- [ ] Implement Telegram signature verification
-- [ ] Issue JWT tokens on verify
-- [ ] Update frontend to use `initData`
-- [ ] Update API client to include `Authorization` header
-- [ ] Update all authenticated routes to verify JWT
-- [ ] Run all tests
-- [ ] Verify logout clears tokens
-- [ ] Delete old OTP code
-- [ ] Remove `otp_sessions` table migration
-- [ ] Deploy to staging; verify E2E
-- [ ] Announce breaking change in changelog
-- [ ] Migrate old users (if needed)
-- [ ] Deploy to production
+**Əmək Xərcləri:** ~2-3 gün
 
 ---
 
-## 🔗 Related Documentation
+## 📋 Miqrasiya Yoxlama Siyahısı
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — System design
-- [BACKEND_DEVELOPER_GUIDE.md](./BACKEND_DEVELOPER_GUIDE.md) — What to work on next
-- [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md) — Selenium automation details
+OTP-dən Telegram auth-ə keçərkən:
+
+- [ ] Yeni `/api/auth/telegram` nöqtə yaratma
+- [ ] Telegram imzasını yoxlama tətbiq
+- [ ] Təsdiqlənəndə JWT tokenləri ver
+- [ ] Frontend `initData` istifadə et
+- [ ] API kliyenti bütün sorğulara `Authorization` başlığını daxil et
+- [ ] Bütün autentifikasiya edilən marşrutları JWT yoxlamağa yeniləş
+- [ ] Bütün testləri çalıştır
+- [ ] Çıxışın tokenləri təmizlədiyini yoxla
+- [ ] Köhnə OTP kodunu sil
+- [ ] `otp_sessions` cədvəl miqrasiyasını silin
+- [ ] Staging-ə deploy; E2E yoxla
+- [ ] Dəyişən dəyişikliyi duyur edin changelog-da
+- [ ] Köhnə istifadəçiləri miqrasiya edin (lazım olsa)
+- [ ] Produksiyaya deploy
 
 ---
 
-**Last updated:** May 2026  
-**Priority:** Fix #1 (auth), then #2 (Puppeteer/Railway), then #4 (E2E tests)
+## 🔗 Əlaqəli Sənədləşdirmə
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — Sistem dizaynı
+- [BACKEND_DEVELOPER_GUIDE.md](./BACKEND_DEVELOPER_GUIDE.md) — Sonra nə işləmə
+- [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md) — Selenium avtomasyonu təfərrüatları
+
+---
+
+**Son Yeniləmə:** May 2026  
+**Prioritet:** #1 (auth) düzəlt, sonra #2 (Puppeteer/Railway), sonra #4 (E2E testləri)

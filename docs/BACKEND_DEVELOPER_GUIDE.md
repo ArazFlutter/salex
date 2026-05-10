@@ -1,59 +1,59 @@
-# Backend Developer Guide — SALex
+# Backend Developer Bələdçəsi — SALex
 
-Complete onboarding guide for a new backend developer joining the SALex project.
-
----
-
-## 🎯 What You're Building
-
-**SALex** is a **Telegram Mini App** that lets sellers in Azerbaijan post listings to multiple marketplaces with one click.
-
-**Your role:** Build and maintain the Express backend that handles:
-- User authentication (currently OTP; migrating to Telegram `initData`)
-- Listing CRUD (create, read, update, delete)
-- Marketplace connections (Selenium automation)
-- Publishing (job queue + async workers)
-- Payment processing (premium plans)
+SALex layihəsinə qoşulan yeni backend developer üçün tam onboarding bələdçəsi.
 
 ---
 
-## 🏗 Architecture Overview (60 seconds)
+## 🎯 Nə Qurmaqdasınız
+
+**SALex** bir **Telegram Mini Applikasiyasıdır** ki, Azərbaycan satıcılarına bir siyahı yaratıb bütün bazarlara avtomatik yayımlamaq imkanı verir.
+
+**Sizin rolu:** Aşağıdakıları idarə edən Express backend qur və saxla:
+- İstifadəçi autentifikasiyası (cari OTP; Telegram `initData`-ya miqrasiya)
+- Siyahı CRUD (yaratma, oxu, yəniləmə, silmə)
+- Bazar bağlantıları (Selenium avtomasyonu)
+- Yayımla (iş sırası + eşzamanlı işçilər)
+- Ödəniş emalı (premium planlar)
+
+---
+
+## 🏗 Arxitektur Icmalı (60 saniyə)
 
 ```
-User opens Telegram → Loads Next.js frontend (port 3000)
+İstifadəçi Telegram açır → Next.js frontend yüklə (port 3000)
                     ↓
-User creates listing, clicks "Publish"
+İstifadəçi siyahı yaradır, "Yayımla" klikidir
                     ↓
-Frontend sends: POST /api/publish/:listingId
+Frontend göndərir: POST /api/publish/:listingId
                     ↓
-Backend (Express :4000) creates jobs in pg-boss queue
+Backend (Express :4000) pg-boss sırasında işlər yaradır
                     ↓
-Worker processes jobs asynchronously:
-  • Loads listing from DB
-  • Starts Chrome
-  • Logs into marketplace (Selenium)
-  • Fills form with listing data
-  • Submits → Gets URL
-  • Stores result in DB
+İşçi eşzamanlı işləri emal edir:
+  • DB-dən siyahı yüklə
+  • Chrome başlat
+  • Bazara daxil olmaq (Selenium)
+  • Siyahı məlumatlarını form ilə doldur
+  • Təqdim et → URL al
+  • Nəticəni DB-də saxla
                     ↓
-Frontend polls: GET /api/publish/:jobId/status
+Frontend polling: GET /api/publish/:jobId/status
                     ↓
-Displays: "Tap.az ✓ | Lalafo ✓ | Alan.az ✗ (retry in 10 min)"
+Göstər: "Tap.az ✓ | Lalafo ✓ | Alan.az ✗ (10 dəq sonra yenidən cəhd)"
 ```
 
-**Key Technologies:**
-- **Express** — HTTP server
-- **PostgreSQL** — Database
-- **pg-boss** — Job queue (same DB, no Redis needed)
-- **Selenium** — Browser automation (login, form-filling)
+**Əsas Texnologiyalar:**
+- **Express** — HTTP serveri
+- **PostgreSQL** — Veritabanı
+- **pg-boss** — İş sırası (eyni DB, Redis lazım deyil)
+- **Selenium** — Brauzer avtomasyonu (daxil olmaq, form doldurma)
 
-**See Also:** [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed diagrams and data flows.
+**Həm də Baxın:** Ətraflı diaqramlar və məlumat axınları üçün [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
-## ⚡ Quick Start (15 minutes)
+## ⚡ Sürətli Başlanğıc (15 dəqiqə)
 
-### 1. Clone & Install
+### 1. Klonla və Quraşdır
 
 ```bash
 git clone https://github.com/ArazFlutter/salex.git
@@ -61,13 +61,13 @@ cd salex
 npm install
 ```
 
-### 2. Setup Environment
+### 2. Ətraf Dəyişənləri Quraşdır
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+`.env` redaktə edin:
 ```bash
 DATABASE_URL=postgres://postgres:password@localhost:5432/salex
 PORT=4000
@@ -75,31 +75,31 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
 APP_URL=http://localhost:3000
 ```
 
-Ensure PostgreSQL is running locally or accessible.
+PostgreSQL-in yerli və ya əlçatan olduğuna əmin olun.
 
-### 3. Initialize Database
+### 3. Veritabanını İşə Sal
 
 ```bash
 npm run db:bootstrap
 ```
 
-This applies `src/db/schema.sql` — creates all tables, indices, pg-boss schema.
+Bu `src/db/schema.sql` tətbiq edir — bütün cədvəlləri, indeksləri, pg-boss sxemini yaradır.
 
-### 4. Start Backend
+### 4. Backend Başlat
 
 ```bash
 # Terminal 1
 npm run server:dev
 ```
 
-You should see:
+Görməniz lazım:
 ```
 ✓ Database connected
 ✓ pg-boss started
 ✓ Server listening on http://localhost:4000
 ```
 
-### 5. Test API
+### 5. API Sınaq
 
 ```bash
 # Terminal 2
@@ -108,7 +108,7 @@ curl -X POST http://localhost:4000/api/auth/send-otp \
   -d '{"phone":"+994501234567"}'
 ```
 
-Expected response:
+Gözlənilən cavab:
 ```json
 {
   "success": true,
@@ -119,57 +119,57 @@ Expected response:
 
 ---
 
-## 📂 Code Organization
+## 📂 Kod Təşkili
 
-### `src/routes/` — API Endpoints
+### `src/routes/` — API Nöqtələri
 
-Each file is one logical route group:
+Hər fayl bir məntiqi marşrut qrupu:
 
 - **`auth.ts`** — `POST /api/auth/send-otp`, `/verify-otp`, `/logout`
 - **`listings.ts`** — `GET|POST /api/listings`, `/upload-image`
 - **`publish.ts`** — `POST /api/publish/:id`, `GET /api/publish/:id/status`
 - **`platforms.ts`** — `POST /api/platforms/connect`
-- **`me.ts`** — `GET /api/me` (current user profile)
-- **`packages.ts`** — `GET /api/packages` (pricing plans)
+- **`me.ts`** — `GET /api/me` (cari istifadəçi profili)
+- **`packages.ts`** — `GET /api/packages` (qiymət planları)
 
-**Pattern:** Each route has a controller function + calls services.
+**Nümunə:** Hər marşrutun idarəçi funksiyası var + xidmətləri çağırır.
 
-**Example:** `POST /api/listings`
+**Misal:** `POST /api/listings`
 
 ```typescript
 // src/routes/listings.ts
 router.post('/', async (req, res) => {
-  const user = getCurrentUser(req); // Throws 401 if not logged in
+  const user = getCurrentUser(req); // Daxil olmamışsa 401 atır
   const input = req.body;
   
   try {
     const listing = await listingService.createListing(user.id, input);
     res.json({ success: true, listing });
   } catch (err) {
-    // AppError handler catches and returns JSON
+    // AppError idarəçi JSON qaytarır
     throw err;
   }
 });
 ```
 
-### `src/services/` — Business Logic
+### `src/services/` — Biznes Məntiqləsi
 
-Each service is a module with functions:
+Hər xidmət modullar ilə modul:
 
-- **`otpService.ts`** — Generate, send, verify OTP codes
-- **`userService.ts`** — User CRUD, get current user, manage sessions
-- **`listingService.ts`** — Listing CRUD, validation, limits
-- **`publishService.ts`** — Create publish jobs, coordinate platform publishing
-- **`paymentService.ts`** — Handle Telegram payment callbacks
-- **`platformService.ts`** — Manage marketplace connections
+- **`otpService.ts`** — OTP kodlarını yaratma, göndər, təsdiqə
+- **`userService.ts`** — İstifadəçi CRUD, cari istifadəçi al, sesiayaları idarə et
+- **`listingService.ts`** — Siyahı CRUD, yoxlama, məhdudiyyətlər
+- **`publishService.ts`** — Yayım işləri yaratma, platforma yayımlamasını əlaqələndir
+- **`paymentService.ts`** — Telegram ödəniş callback-lərini idarə et
+- **`platformService.ts`** — Bazar bağlantılarını idarə et
 
-**Pattern:** Services call database, utilities, external APIs. Don't know about HTTP.
+**Nümunə:** Xidmətlər veritabanı, utilities, xarici API-ləri çağırır. HTTP haqqında bilmir.
 
-**Example:** `userService.ts`
+**Misal:** `userService.ts`
 
 ```typescript
 export async function getCurrentUser(req: Request): Promise<User> {
-  // Query: SELECT users.* FROM users
+  // Sorğu: SELECT users.* FROM users
   //        JOIN otp_sessions ON user_id = users.id AND is_current = TRUE
   //        WHERE verified_at IS NOT NULL LIMIT 1
   
@@ -182,16 +182,16 @@ export async function createListing(
   userId: string,
   input: CreateListingInput
 ): Promise<Listing> {
-  // Validate input
+  // Girişi yoxla
   validateCreateInput(input);
   
-  // Check listing limit
+  // Siyahı məhdudiyyətini yoxla
   const count = await getActiveListingCount(userId);
   if (count >= packageLimits[plan]) {
     throw new AppError('Listing limit reached', 403);
   }
   
-  // Insert to DB
+  // DB-ə daxil et
   const result = await pool.query(
     'INSERT INTO listings (...) VALUES (...) RETURNING *',
     [userId, input.title, input.price, ...]
@@ -201,17 +201,17 @@ export async function createListing(
 }
 ```
 
-### `src/connectors/` — Marketplace Automation
+### `src/connectors/` — Bazar Avtomasyonu
 
-Each marketplace has a connector that automates login + publishing:
+Hər bazarın daxil olmaq + yayımlamağı avtomatlaşdıran konnektoru var:
 
-- **`tapazConnector.ts`** — Tap.az (uses Chrome DevTools Protocol for login interception)
+- **`tapazConnector.ts`** — Tap.az (daxil olmaq intercepti üçün Chrome DevTools Protocol istifadə)
 - **`lalafoConnector.ts`** — Lalafo
-- **`alanaConnector.ts`** — Alan.az (stub)
+- **`alanaConnector.ts`** — Alan.az (skelet)
 - **`layloConnector.ts`** — Laylo.az
-- **`birjacomConnector.ts`** — Birja.com (stub)
+- **`birjacomConnector.ts`** — Birja.com (skelet)
 
-**Interface:**
+**İnterfeys:**
 ```typescript
 export interface PlatformConnector {
   publishListing(listing: NormalizedListing): Promise<PublishResult>;
@@ -220,40 +220,40 @@ export interface PlatformConnector {
 }
 ```
 
-**Flow:**
-1. Start Chrome with `buildChromeDriver()`
-2. Login to marketplace (phone + OTP)
-3. Navigate to listing creation page
-4. Fill form with standardized fields (title, price, city, category, etc.)
-5. Submit form
-6. Extract listing URL
-7. Return `{ url: '...' }` or `{ error: '...' }`
+**Axın:**
+1. `buildChromeDriver()` ilə Chrome-u başlat
+2. Bazara daxıl olmaq (telefon + OTP)
+3. Siyahı yaratma səhifəsinə keç
+4. Standartlaşdırılmış sahələrlə formu doldur (başlıq, qiymət, şəhər, kateqoriya, və s.)
+5. Formu təqdim et
+6. Siyahı URL-ni çıxar
+7. `{ url: '...' }` və ya `{ error: '...' }` qaytarma
 
-**Example:** Tap.az connector snippet
+**Misal:** Tap.az konnektoru parçası
 
 ```typescript
 export class TapazConnector implements PlatformConnector {
   async publishListing(listing: NormalizedListing): Promise<PublishResult> {
     const driver = buildChromeDriver();
     try {
-      // Step 1: Login
+      // Addım 1: Daxıl olmaq
       await driver.get('https://tap.az');
       await driver.findElement(By.css('a:contains("Login")')).click();
       await driver.findElement(By.name('phone')).sendKeys(TAPAZ_LOGIN_PHONE);
-      // ... OTP verification ...
+      // ... OTP yoxlaması ...
       
-      // Step 2: Navigate to create listing
+      // Addım 2: Siyahı yaratmaq səhifəsinə keç
       await driver.get('https://tap.az/my/add');
       
-      // Step 3: Fill form
+      // Addım 3: Formu doldur
       await driver.findElement(By.name('title')).sendKeys(listing.title);
       await driver.findElement(By.name('price')).sendKeys(listing.price);
-      // ... more fields ...
+      // ... daha çox sahə ...
       
-      // Step 4: Submit
+      // Addım 4: Təqdim et
       await driver.findElement(By.css('button[type=submit]')).click();
       
-      // Step 5: Get URL
+      // Addım 5: URL al
       const url = await driver.getCurrentUrl();
       return { success: true, url };
     } catch (err) {
@@ -272,98 +272,98 @@ export class TapazConnector implements PlatformConnector {
 }
 ```
 
-**See Also:** [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md) for per-marketplace details.
+**Həm də Baxın:** Hər-bazar təfərrüatlar üçün [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md).
 
-### `src/queue/` — Job Queue (pg-boss)
+### `src/queue/` — İş Sırası (pg-boss)
 
-- **`boss.ts`** — Initialize pg-boss connection
-- **`queues.ts`** — Define queue names (constants)
-- **`handlers/`** — Job handler functions
-  - **`publishPlatform.ts`** — Handle one publish job (call connector)
-  - **`recoverPendingLinks.ts`** — Retry failed publishes
-- **`worker.ts`** — Standalone worker process (run separately from API)
+- **`boss.ts`** — pg-boss bağlantısını işə sal
+- **`queues.ts`** — Sırası adlarını təyin et (sabitlər)
+- **`handlers/`** — İş idarəçi funksiyaları
+  - **`publishPlatform.ts`** — Bir yayım işini idarə et (konnektoru çağırma)
+  - **`recoverPendingLinks.ts`** — Uğursuz yayımlamaları yenidən cəhd et
+- **`worker.ts`** — Müstəqil işçi prosesi (API-dən ayrı çalıştırılsın)
 
-**Pattern:** Create a job → Handler processes asynchronously.
+**Nümunə:** İş yaratma → Idarəçi eşzamanlı emal.
 
-**Example:** `publishPlatform.ts` handler
+**Misal:** `publishPlatform.ts` idarəçi
 
 ```typescript
 export async function handlePublishPlatform(job: PgBossJob) {
   const { listingId, platform, userId } = job.data;
   
   try {
-    // 1. Load listing from DB
+    // 1. DB-dən siyahı yüklə
     const listing = await getListingById(listingId, userId);
     if (!listing) throw new Error('Listing not found');
     
-    // 2. Normalize data to platform schema
+    // 2. Məlumatı bazar sxemasına normallaş
     const normalized = normalizeListing(listing);
     
-    // 3. Get connector
+    // 3. Konnektoru al
     const connector = getConnector(platform);
     if (!connector) throw new Error(`Platform ${platform} not supported`);
     
-    // 4. Call connector (Selenium automation)
+    // 4. Konnektoru çağırma (Selenium avtomasyonu)
     const result = await connector.publishListing(normalized);
     
-    // 5. Update DB with result
+    // 5. DB-nə nəticə ilə yəniləş
     await pool.query(
       'UPDATE publish_job_platforms SET status = $1, url = $2, error = $3 WHERE ...',
       [result.success ? 'completed' : 'failed', result.url, result.error]
     );
   } catch (err) {
-    // Job failed; pg-boss will retry on next recovery cycle
+    // İş uğursuz; pg-boss sonrakı bərpa dövrəsində yenidən cəhd edəcək
     throw err;
   }
 }
 ```
 
-### `src/db/` — Database
+### `src/db/` — Veritabanı
 
-- **`schema.sql`** — Table definitions (CREATE TABLE, INDEX, etc.)
-- **`pool.ts`** — PostgreSQL connection pool (`pg.Pool`)
-- **`env.ts`** — Load `DATABASE_URL` from `.env`
+- **`schema.sql`** — Cədvəl tərifləri (CREATE TABLE, INDEX, və s.)
+- **`pool.ts`** — PostgreSQL bağlantı hovuzu (`pg.Pool`)
+- **`env.ts`** — `.env`-dən `DATABASE_URL` yüklə
 
-**Pattern:** All queries use `pool.query(sql, params)` with parameterized queries (safe from SQL injection).
+**Nümünə:** Bütün sorğular `pool.query(sql, params)` ilə parameterləşdirilmiş sorğulardan istifadə edir (SQL injection-dən təhlükəlidir).
 
-**Example:** Query with parameters
+**Misal:** Parametr ilə sorğu
 
 ```typescript
-// ✓ Safe: Parameters are escaped
+// ✓ Təhlükəsiz: Parametrlər kaçqın ediliblər
 const result = await pool.query(
   'SELECT * FROM users WHERE id = $1',
   [userId]
 );
 
-// ✗ UNSAFE: String concatenation
+// ✗ TAHLÜKƏLİ: Sətir birləşməsi
 const result = await pool.query(`SELECT * FROM users WHERE id = ${userId}`);
 ```
 
 ---
 
-## 🔑 Key APIs You'll Build/Modify
+## 🔑 Quracağınız/Dəyişdirəcəyiniz Əsas API-lər
 
-### Authentication (CRITICAL — Needs Migration)
+### Autentifikasiya (KRİTİK — Miqrasiya Lazımdır)
 
-**Current Endpoints:**
-- `POST /api/auth/send-otp { phone }` → Returns `expiresAt`
-- `POST /api/auth/verify-otp { phone, code }` → Returns user
-- `POST /api/auth/logout` → Clears session
+**Cari Nöqtələr:**
+- `POST /api/auth/send-otp { phone }` → `expiresAt` qaytarır
+- `POST /api/auth/verify-otp { phone, code }` → istifadəçi qaytarır
+- `POST /api/auth/logout` → Sesiayı təmizlə
 
-**Current Implementation:** `src/routes/auth.ts` + `src/services/otpService.ts`
+**Cari Tətbiq:** `src/routes/auth.ts` + `src/services/otpService.ts`
 
-**Problem:** OTP via SMS is unreliable; plaintext logs.
+**Problem:** SMS vasitəsilə OTP qeyri-etibarlı; loqlarda açıq kodlar.
 
-**Your Task:** Migrate to Telegram `initData` + JWT.
+**Sizin Tapşırığınız:** Telegram `initData` + JWT-ə miqrasiya.
 
-**New Endpoints (to implement):**
+**Yeni Nöqtələr (Tətbiq etmə):**
 ```typescript
 POST /api/auth/telegram
 {
-  "initData": "user=123&..." // From window.Telegram.WebApp.initData
+  "initData": "user=123&..." // window.Telegram.WebApp.initData-dan
 }
 
-Response:
+Cavab:
 {
   "success": true,
   "user": { id, phone, fullName, activePlan },
@@ -371,129 +371,129 @@ Response:
 }
 ```
 
-**Why This Matters:** Blocking everyone. Fix first.
+**Niyə Əhəmiyyətli:** Hamını blok edir. Birinci düzəlt.
 
-**See Also:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) — Issue #1.
-
----
-
-### Listings
-
-**Endpoints (already implemented):**
-- `POST /api/listings` — Create listing
-- `GET /api/listings` — List user's listings
-- `GET /api/listings/:id` — Get single listing
-- `POST /api/listings/upload-image` — Upload image file
-
-**Implementation:** `src/routes/listings.ts` + `src/services/listingService.ts`
-
-**Your Task:** Usually just bug fixes or adding fields. See KNOWN_ISSUES #4.
+**Həm də Baxın:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) — Məsələ #1.
 
 ---
 
-### Publishing
+### Siyahılar
 
-**Endpoints (implemented but needs testing):**
-- `POST /api/publish/:listingId` — Create publish job for all platforms
-- `GET /api/publish/:jobId/status` — Poll job status
+**Nöqtələr (artıq tətbiq olunmuş):**
+- `POST /api/listings` — Siyahı yaratma
+- `GET /api/listings` — İstifadəçinin siyahılarını sıralay
+- `GET /api/listings/:id` — Tək siyahı al
+- `POST /api/listings/upload-image` — Şəkil faylını yüklə
 
-**Implementation:** `src/routes/publish.ts` + `src/services/publishService.ts` + `src/queue/handlers/`
+**Tətbiq:** `src/routes/listings.ts` + `src/services/listingService.ts`
 
-**Your Task:**
-- [ ] Complete Alan.az & Birja.com connectors (Issue #5)
-- [ ] Write E2E tests (Issue #4)
-- [ ] Fix Railway Chrome issues (Issue #2)
-
----
-
-### Platforms
-
-**Endpoints:**
-- `POST /api/platforms/connect { platform }` — Initiate marketplace connection (opens popup)
-- `GET /api/platforms` — List connected platforms
-
-**Implementation:** `src/routes/platforms.ts` + connectors
-
-**Your Task:** Verify token reuse works; implement full disconnect flow.
+**Sizin Tapşırığınız:** Adətən just xəta düzəltmələri və ya sahə əlavəsi. KNOWN_ISSUES #4 baxın.
 
 ---
 
-### Package Plans (Premium)
+### Yayımla
 
-**Endpoints:**
-- `GET /api/packages` — List available plans (basic, premium, premiumPlus)
-- `GET /api/package/current` — User's current plan + listing limit
-- `POST /api/package/select { plan }` — Switch plan
-- `POST /api/payments/create { plan }` — Create Telegram payment link
+**Nöqtələr (tətbiq olunmuş amma sınaq lazımdır):**
+- `POST /api/publish/:listingId` — Bütün bazarlar üçün yayım işi yaratma
+- `GET /api/publish/:jobId/status` — İş vəziyyətini polling
 
-**Implementation:** `src/routes/packages.ts` + `src/services/paymentService.ts`
+**Tətbiq:** `src/routes/publish.ts` + `src/services/publishService.ts` + `src/queue/handlers/`
 
-**Your Task:** Usually works. Monitor for payment webhook issues.
-
----
-
-## 📊 Database Schema (Overview)
-
-| Table | Purpose | Key Columns |
-|-------|---------|-----------|
-| `users` | Registered users | id, phone, full_name, account_type, active_plan |
-| `otp_sessions` | Auth sessions (OTP) | phone, code, is_current, verified_at |
-| `listings` | User listings | id, user_id, title, price, city, category, images, status |
-| `platform_connections` | Marketplace tokens | user_id, platform, access_token, refresh_token |
-| `publish_jobs` | Overall publish task | id, user_id, listing_id, status |
-| `publish_job_platforms` | Per-platform result | job_id, platform, status, url, error |
-| `pgboss.*` | Job queue (internal) | — |
-
-**See Also:** [DB_HANDOFF.md](./DB_HANDOFF.md) for full schema.
+**Sizin Tapşırığınız:**
+- [ ] Alan.az & Birja.com konnektorlarını tamamla (Məsələ #5)
+- [ ] E2E testlər yazma (Məsələ #4)
+- [ ] Railway Chrome məsələsini düzəltmə (Məsələ #2)
 
 ---
 
-## 🚀 Priority: What to Work On
+### Platformalar
 
-**In order of importance:**
+**Nöqtələri:**
+- `POST /api/platforms/connect { platform }` — Bazar bağlantısını başlat (popup açar)
+- `GET /api/platforms` — Bağlı platformaları sıralay
 
-### 1. **Migrate to Telegram Auth** (1 week)
-   - **Impact:** Fixes OTP reliability (blocking everyone)
-   - **Effort:** ~3 days backend, ~2 days frontend, ~1 day testing
-   - **Files:** `src/routes/auth.ts`, `src/services/userService.ts`, middleware
-   - **See:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #1
+**Tətbiq:** `src/routes/platforms.ts` + konnektorlar
 
-### 2. **Fix Puppeteer on Railway** (3-4 days)
-   - **Impact:** Publishing works reliably in production
-   - **Effort:** Rewrite connectors to use Puppeteer
-   - **Files:** `src/connectors/*.ts`
-   - **See:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #2
-
-### 3. **Complete Platform Connectors** (2-3 days)
-   - **Impact:** Users can publish to Alan.az & Birja.com
-   - **Effort:** Implement 2 connectors (~200 lines each)
-   - **Files:** `src/connectors/alanaConnector.ts`, `src/connectors/birjacomConnector.ts`
-   - **See:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #5
-
-### 4. **Write E2E Tests** (2-3 days)
-   - **Impact:** Catch regressions before production
-   - **Effort:** Jest + Supertest for API; Puppeteer for connector smoke tests
-   - **Files:** `tests/` (new directory)
-   - **See:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #4
-
-### 5. **Add Monitoring & Alerts** (1-2 days)
-   - **Impact:** Catch failures in production early
-   - **Tools:** Sentry (errors), LogRocket (sessions), CloudWatch (logs)
-   - **See:** [DEPLOYMENT.md](./DEPLOYMENT.md)
+**Sizin Tapşırığınız:** Token yenidən istifadənin işlədiyini yoxla; tam disconnect axınını tətbiq et.
 
 ---
 
-## 🧪 Testing
+### Paket Planları (Premium)
 
-### Unit Tests
+**Nöqtələri:**
+- `GET /api/packages` — Mövcud planları sıralay (basic, premium, premiumPlus)
+- `GET /api/package/current` — İstifadəçinin cari plan + siyahı məhdudiyyəti
+- `POST /api/package/select { plan }` — Plan dəyişdir
+- `POST /api/payments/create { plan }` — Telegram ödəniş linki yaratma
+
+**Tətbiq:** `src/routes/packages.ts` + `src/services/paymentService.ts`
+
+**Sizin Tapşırığınız:** Adətən işləyir. Ödəniş webhook problemlərini monitorinq.
+
+---
+
+## 📊 Veritabanı Sxemi (Icmal)
+
+| Cədvəl | Məqsəd | Əsas Sütunlar |
+|-------|--------|-----------|
+| `users` | Qeydiyyatlı istifadəçilər | id, phone, full_name, account_type, active_plan |
+| `otp_sessions` | Auth sesilaşdırması (OTP) | phone, code, is_current, verified_at |
+| `listings` | İstifadəçi siyahıları | id, user_id, title, price, city, category, images, status |
+| `platform_connections` | Bazar tokenləri | user_id, platform, access_token, refresh_token |
+| `publish_jobs` | Ümumi yayım tapşırığı | id, user_id, listing_id, status |
+| `publish_job_platforms` | Hər-bazar nəticə | job_id, platform, status, url, error |
+| `pgboss.*` | İş sırası (daxili) | — |
+
+**Həm də Baxın:** Tam sxema üçün [DB_HANDOFF.md](./DB_HANDOFF.md).
+
+---
+
+## 🚀 Prioritet: Nə Üzərində İşləmə
+
+**Əhəmiyyət sırasında:**
+
+### 1. **Telegram Auth-ə Miqrasiya** (1 həftə)
+   - **Impact:** OTP etibarlılığını düzəltir (hamını blok edir)
+   - **Əmək:** ~3 gün backend, ~2 gün frontend, ~1 gün sınaq
+   - **Fayllar:** `src/routes/auth.ts`, `src/services/userService.ts`, middleware
+   - **Baxın:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #1
+
+### 2. **Railway-da Puppeteer Düzəltmə** (3-4 gün)
+   - **Impact:** Produksiyada yayımla etibarlı işləyir
+   - **Əmək:** Konnektorları Puppeteer-ə yenidən yaz
+   - **Fayllar:** `src/connectors/*.ts`
+   - **Baxın:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #2
+
+### 3. **Platform Konnektorlarını Tamamla** (2-3 gün)
+   - **Impact:** İstifadəçilər Alan.az & Birja.com-a yayımla bilər
+   - **Əmək:** 2 konnektoru tətbiq (hər biri ~200 sətir)
+   - **Fayllar:** `src/connectors/alanaConnector.ts`, `src/connectors/birjacomConnector.ts`
+   - **Baxın:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #5
+
+### 4. **E2E Testlər Yazma** (2-3 gün)
+   - **Impact:** Regresiyaları produksiyadan əvvəl tutunsun
+   - **Əmək:** Jest + Supertest API-si; konnektoru smok testləri Puppeteer
+   - **Fayllar:** `tests/` (yeni direktoriya)
+   - **Baxın:** [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) #4
+
+### 5. **Monitorinq və Xəbərdarlıq Əlavə Edin** (1-2 gün)
+   - **Impact:** Produksiyada uğursuzluqları tez tutu
+   - **Alətlər:** Sentry (xətalar), LogRocket (sesialar), CloudWatch (loglar)
+   - **Baxın:** [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+---
+
+## 🧪 Sınaq
+
+### Unit Testləri
 
 ```bash
 npm test
 ```
 
-Tests live in `src/**/*.test.ts` (if you create them).
+Testlər `src/**/*.test.ts`-də yaşayır (yarats).
 
-**Example test:**
+**Misal testi:**
 ```typescript
 // src/services/otpService.test.ts
 describe('otpService', () => {
@@ -504,22 +504,22 @@ describe('otpService', () => {
   
   it('should verify correct OTP', async () => {
     await sendOtp('+994501234567');
-    // In test, we'd mock SMS and get code from DB
+    // Testdə SMS-ni mock-layıp codeu DB-dən al
     const result = await verifyOtp('+994501234567', '1234');
     expect(result.success).toBe(true);
   });
 });
 ```
 
-### API Tests (Smoke Tests)
+### API Testləri (Smok Testləri)
 
 ```bash
 npm run smoke:backend
 ```
 
-Runs `src/dev/smokeTest.ts` — basic HTTP checks.
+`src/dev/smokeTest.ts`-ni çalıştırır — əsas HTTP yoxlaması.
 
-**To add new test:**
+**Yeni test əlavə etmə:**
 ```typescript
 // src/dev/smokeTest.ts
 async function testPublish() {
@@ -532,15 +532,15 @@ async function testPublish() {
 }
 ```
 
-### Connector Smoke Tests
+### Konnektoru Smok Testləri
 
 ```bash
 npm run smoke:publish-connectors
 ```
 
-Runs `src/dev/publishConnectorSmoke.ts` — tests Tap.az & Lalafo with real credentials.
+`src/dev/publishConnectorSmoke.ts`-ni çalıştırır — Tap.az & Lalafo-nu həqiqi etimadnamələrlə sınar.
 
-**Requires env vars:**
+**Tələb edir env varları:**
 ```bash
 TAPAZ_LOGIN_PHONE=+994501234567
 TAPAZ_OTP_CODE=1234
@@ -549,40 +549,40 @@ LALAFO_LOGIN_PHONE=...
 
 ---
 
-## 🐛 Common Tasks
+## 🐛 Ümumi Tapşırıqlar
 
-### Add a New API Endpoint
+### Yeni API Nöqtəsi Əlavə Edin
 
-**Example:** `GET /api/listings/:id/comments`
+**Misal:** `GET /api/listings/:id/comments`
 
-**Step 1:** Create route handler
+**Addım 1:** Marşrut idarəçi yaratma
 ```typescript
 // src/routes/listings.ts
 router.get('/:id/comments', async (req, res) => {
-  const user = getCurrentUser(req); // Throws 401 if not logged in
+  const user = getCurrentUser(req); // Daxıl olmamışsa 401 atır
   const { id } = req.params;
   
   try {
     const comments = await listingService.getComments(id, user.id);
     res.json({ success: true, comments });
   } catch (err) {
-    throw err; // AppError handler catches
+    throw err; // AppError idarəçi JSON qaytarır
   }
 });
 ```
 
-**Step 2:** Add service function
+**Addım 2:** Xidmət funksiyası əlavə edin
 ```typescript
 // src/services/listingService.ts
 export async function getComments(listingId: string, userId: string) {
-  // Verify user owns listing
+  // İstifadəçi siyahıyı sahibliyi yoxla
   const listing = await pool.query(
     'SELECT * FROM listings WHERE id = $1 AND user_id = $2',
     [listingId, userId]
   );
   if (!listing.rows.length) throw new AppError('Not found', 404);
   
-  // Get comments
+  // Şərhlər al
   const result = await pool.query(
     'SELECT * FROM comments WHERE listing_id = $1 ORDER BY created_at DESC',
     [listingId]
@@ -591,42 +591,42 @@ export async function getComments(listingId: string, userId: string) {
 }
 ```
 
-**Step 3:** Test
+**Addım 3:** Sınaq
 ```bash
 curl http://localhost:4000/api/listings/123/comments \
-  -H "Cookie: salex_session=..." # Requires auth
+  -H "Cookie: salex_session=..." # Auth tələbi
 ```
 
 ---
 
-### Modify Database Schema
+### Veritabanı Sxemini Dəyişdir
 
-**Example:** Add `external_id` field to listings table.
+**Misal:** Siyahılar cədvəlinə `external_id` sahəsi əlavə edin.
 
-**Step 1:** Update schema
+**Addım 1:** Sxemi yəniləş
 ```sql
 -- src/db/schema.sql
 ALTER TABLE listings ADD COLUMN external_id TEXT;
 CREATE INDEX idx_listings_external_id ON listings(external_id);
 ```
 
-**Step 2:** Run migration
+**Addım 2:** Miqrasiyası çalıştır
 ```bash
 npm run db:bootstrap
 ```
 
-**Step 3:** Update TypeScript types
+**Addım 3:** TypeScript tipləri yəniləş
 ```typescript
-// src/types/index.ts or service
+// src/types/index.ts və ya xidmət
 interface Listing {
   id: string;
-  externalId?: string; // New field
+  externalId?: string; // Yeni sahə
   title: string;
-  // ... other fields
+  // ... digər sahələri
 }
 ```
 
-**Step 4:** Update service code
+**Addım 4:** Xidmət kodunu yəniləş
 ```typescript
 const listing = {
   id: result.rows[0].id,
@@ -638,64 +638,64 @@ const listing = {
 
 ---
 
-### Debug a Failing Publish Job
+### Uğursuz Yayım İşini Debug Edin
 
-**Situation:** User tried to publish; listing never appeared on Tap.az. 
+**Vəziyyət:** İstifadəçi yayımlamağa cəhd edir; siyahı Tap.az-da heç vaxt görünmür.
 
-**Investigation:**
+**Araştırma:**
 
 ```bash
-# 1. Check job status
+# 1. İş vəziyyətini yoxla
 curl http://localhost:4000/api/publish/job-123/status
 
-# 2. Check job table
+# 2. İş cədvəlini yoxla
 psql $DATABASE_URL -c "SELECT * FROM publish_jobs WHERE id = 'job-123';"
 
-# 3. Check per-platform results
+# 3. Hər-bazar nəticələri yoxla
 psql $DATABASE_URL -c "SELECT * FROM publish_job_platforms WHERE job_id = 'job-123';"
 
-# 4. Check pg-boss queue
+# 4. pg-boss sırasını yoxla
 psql $DATABASE_URL -c "SELECT * FROM pgboss.job WHERE id = '...' LIMIT 5;"
 
-# 5. Check server logs
-# Look for error messages in npm run server:dev console
+# 5. Server loqlarını yoxla
+# npm run server:dev konsolunda xəta mesajları axtarın
 ```
 
-**Common Issues:**
+**Ümumi Problemlər:**
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| "Button not found: Daxil ol" | Selector changed | Update connector; try `clickByText('Daxil ol')` |
-| "Chrome process crashed" | Out of memory | Reduce headless; check Railway resources |
-| "Timeout waiting for navigation" | Site slow or blocked | Increase `TAPAZ_SELENIUM_TIMEOUT_MS` |
-| "OTP timeout" | No OTP provided | Set `TAPAZ_OTP_CODE` or `TAPAZ_OTP_FILE` |
-
----
-
-## 📚 Documentation Index
-
-| Doc | Purpose |
-|-----|---------|
-| [README.md](../README.md) | Project overview, setup, deployment |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, data flows, diagrams |
-| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Critical bugs, migration roadmap |
-| [ENVIRONMENT.md](./ENVIRONMENT.md) | All env variables explained |
-| [API_HANDOFF.md](./API_HANDOFF.md) | HTTP API endpoints & requests |
-| [DB_HANDOFF.md](./DB_HANDOFF.md) | Database schema & queries |
-| [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md) | Selenium automation per-platform |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Production setup (Vercel, Railway) |
-| [RUNBOOK.md](./RUNBOOK.md) | Operations & common commands |
+| Simptom | Səbəb | Düzəltmə |
+|---------|-------|----------|
+| "Button not found: Daxıl ol" | Selectorlik dəyişdi | Konnektoru yəniləş; `clickByText('Daxıl ol')` cəhd et |
+| "Chrome process crashed" | Yaddaş çatmadı | Headless azalt; Railway resurslarını yoxla |
+| "Timeout waiting for navigation" | Sayt yavaş və ya bağlı | `TAPAZ_SELENIUM_TIMEOUT_MS` artır |
+| "OTP timeout" | OTP verilmədi | `TAPAZ_OTP_CODE` və ya `TAPAZ_OTP_FILE` qəbul et |
 
 ---
 
-## 💬 Questions?
+## 📚 Sənədləşdirmə İndeksi
 
-1. **"How do I...?"** → Check [RUNBOOK.md](./RUNBOOK.md)
-2. **"Why is...?"** → Check [ARCHITECTURE.md](./ARCHITECTURE.md)
-3. **"What's this error?"** → Check [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
-4. **"What endpoint...?"** → Check [API_HANDOFF.md](./API_HANDOFF.md)
+| Sənəd | Məqsəd |
+|-------|--------|
+| [README.md](../README.md) | Layihə icmalı, setup, deployment |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Sistem dizaynı, məlumat axınları, diaqramlar |
+| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Kritik xətalar, miqrasiya yol xəritəsi |
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | Bütün ətraf dəyişənlər izahlı |
+| [API_HANDOFF.md](./API_HANDOFF.md) | HTTP API nöqtələri və sorğular |
+| [DB_HANDOFF.md](./DB_HANDOFF.md) | Veritabanı sxemi və sorğular |
+| [PLATFORM_CONNECTORS.md](./PLATFORM_CONNECTORS.md) | Selenium avtomasyonu hər-bazar |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Produksiya setup (Vercel, Railway) |
+| [RUNBOOK.md](./RUNBOOK.md) | Əməliyyatlar və ümumi əmrlər |
 
 ---
 
-**Last updated:** May 2026  
-**Quick Links:** [GitHub](https://github.com/ArazFlutter/salex) · [Vercel](https://salex-next.vercel.app) · [Railway](https://salex-api.railway.app)
+## 💬 Suallar?
+
+1. **"Necə...?"** → [RUNBOOK.md](./RUNBOOK.md) yoxlayın
+2. **"Niyə...?"** → [ARCHITECTURE.md](./ARCHITECTURE.md) yoxlayın
+3. **"Bu xəta nə?"** → [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) yoxlayın
+4. **"Hansı nöqtə...?"** → [API_HANDOFF.md](./API_HANDOFF.md) yoxlayın
+
+---
+
+**Son Yeniləmə:** May 2026  
+**Sürətli Linkləri:** [GitHub](https://github.com/ArazFlutter/salex) · [Vercel](https://salex-next.vercel.app) · [Railway](https://salex-api.railway.app)

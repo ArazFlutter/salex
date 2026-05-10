@@ -1,170 +1,170 @@
-# SALex — Multi-Marketplace Listing Automation
+# SALex — Multi-Marketplace Siyahılandırma Avtomasyonu
 
-> **Telegram Mini App** for selling products across multiple Azerbaijani marketplaces with a single listing creation.
+> **Telegram Mini Applikasiyası** Azərbaycan bazarlarında məhsulları bir sırada satışa çıxarmaq üçün.
 
-**SALex** (Smart Auto Listing Exchange) lets sellers create a listing once and automatically publish it to **Tap.az**, **Lalafo**, **Alan.az**, **Laylo.az**, and **Birja.com** — all from inside Telegram.
-
----
-
-## 🎯 What SALex Does
-
-1. **Seller logs in via Telegram** → OTP verification (needs migration to Telegram `initData`)
-2. **Creates a single listing** → Title, price, images, description, category
-3. **Connects marketplace accounts** → Selenium automation logs into each platform
-4. **Publishes with one click** → Backend creates jobs; worker publishes to all platforms in parallel
-5. **Tracks status** → Real-time status updates; recovers failed publishes automatically
+**SALex** (Smart Auto Listing Exchange) satıcılara bir siyahı yaradıb **Tap.az**, **Lalafo**, **Alan.az**, **Laylo.az** və **Birja.com**-a avtomatik yayımlamaq imkanı verir — hamısı Telegram-dan.
 
 ---
 
-## 🛠 Tech Stack
+## 🎯 SALex Nə Edir?
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| **Frontend** | Next.js 15, React 19, Tailwind CSS | Telegram Mini App wrapper; runs at `localhost:3000` |
-| **Backend** | Express 5 (Node.js) | REST API at `localhost:4000`; handles auth, listings, jobs |
-| **Database** | PostgreSQL | Stores users, listings, marketplace connections, publish jobs |
-| **Job Queue** | pg-boss | Scales publishing across worker processes; runs in same DB as app |
-| **Automation** | Selenium WebDriver + Chromium | Logs into marketplaces; fills forms; submits listings |
-| **Deployment** | Vercel (frontend) + Railway (backend + DB) | Frontend auto-deploys on git push; backend via Railway |
+1. **Satıcı Telegram vasitəsilə daxil olur** → OTP təsdiqləməsi (Telegram `initData`-ya miqrasiya lazımdır)
+2. **Bir siyahı yaradır** → Başlıq, qiymət, şəkillər, təsvir, kateqoriya
+3. **Bazarların hesablarını bağlayır** → Selenium avtomasyonu hər platformada daxil olur
+4. **Bir kliklə yayımlayır** → Backend işlər yaradır; işçi bütün platformalara paralel yayımlar
+5. **Vəziyyəti izləyir** → Real vaxt statusu; uğursuz yayımlamaları avtomatik bərpa edir
 
 ---
 
-## 📁 Project Structure
+## 🛠 Texnologiya Yığını
+
+| Səviyyə | Texnologiya | Qeydlər |
+|--------|-----------|-------|
+| **Frontend** | Next.js 15, React 19, Tailwind CSS | Telegram Mini App qabı; `localhost:3000`-də çalışır |
+| **Backend** | Express 5 (Node.js) | REST API `localhost:4000`-də; autentifikasiya, siyahılar, işləri idarə edir |
+| **Veritabanı** | PostgreSQL | İstifadəçiləri, siyahıları, bazarların bağlantılarını, yayım işlərini saxlayır |
+| **İş Sırası** | pg-boss | Yayımlamağı işçi prosesləri arasında miqyaslandırır; eyni DB-də çalışır |
+| **Avtomasyonu** | Selenium WebDriver + Chromium | Bazarlarda daxil olur; formları doldurur; siyahıları təqdim edir |
+| **Deployment** | Vercel (frontend) + Railway (backend + DB) | Frontend git push-a avtomatik deploy olur; backend Railway vasitəsilə |
+
+---
+
+## 📁 Layihə Struktur
 
 ```
 salex-main/
-├── app/                        # Next.js app (browser UI)
-│   ├── page.tsx                # Main Telegram Mini App component
+├── app/                        # Next.js applikasiyası (brauzer UI)
+│   ├── page.tsx                # Əsas Telegram Mini App komponenti
 │   ├── layout.tsx              # Root layout (Telegram provider)
-│   └── globals.css             # Tailwind + global styles
+│   └── globals.css             # Tailwind + qlobal üslublar
 ├── components/
-│   ├── screens/                # Full-page screens (Dashboard, CreateListing, etc.)
-│   ├── ui/                     # Reusable UI components (Button, Input, etc.)
-│   └── providers/              # Context providers (TelegramMiniAppProvider)
-├── contexts/                   # React contexts (LanguageContext, etc.)
-├── hooks/                      # Custom React hooks
+│   ├── screens/                # Tam səhifə ekranları (Dashboard, CreateListing, və s.)
+│   ├── ui/                     # Yenidən istifadə olunan UI komponentləri (Button, Input, və s.)
+│   └── providers/              # Context provayderləri (TelegramMiniAppProvider)
+├── contexts/                   # React kontekstləri (LanguageContext, və s.)
+├── hooks/                      # Xüsusi React hooku
 ├── lib/
-│   ├── api.ts                  # API client (fetch wrapper)
-│   ├── app-state.ts            # Types & constants (UserProfile, Listing, etc.)
-│   ├── clientSession.ts        # localStorage management (APP_VERSION, user ID binding)
-│   └── listingLocalization.ts  # Category/city translations
+│   ├── api.ts                  # API kliyenti (fetch qabı)
+│   ├── app-state.ts            # Tipləri və sabitləri (UserProfile, Listing, və s.)
+│   ├── clientSession.ts        # localStorage idarəçiliyi (APP_VERSION, istifadəçi ID bağlanması)
+│   └── listingLocalization.ts  # Kateqoriya/şəhər tərcimələri
 ├── src/                        # Express backend (TypeScript)
-│   ├── app.ts                  # Express app setup (middleware, routes)
-│   ├── server.ts               # Entry point (starts server + pg-boss)
-│   ├── middleware/             # Auth, error handling
-│   ├── routes/                 # API routes (/api/auth, /api/listings, /api/publish, etc.)
-│   ├── services/               # Business logic (OTP, listings, publish, payment)
-│   ├── connectors/             # Selenium platform connectors (TapazConnector, LalafoConnector, etc.)
-│   ├── queue/                  # pg-boss setup + job handlers (publish, recover)
-│   ├── db/                     # Database config, connection pool, schema
-│   └── utils/                  # Helpers (downloadImages, logging, etc.)
-├── docs/                       # Developer documentation
-│   ├── ARCHITECTURE.md         # System design & data flows
-│   ├── KNOWN_ISSUES.md         # Bugs, risks, and TODOs
-│   ├── BACKEND_DEVELOPER_GUIDE.md  # Setup & what to work on
-│   ├── ENVIRONMENT.md          # Environment variables
-│   ├── API_HANDOFF.md          # HTTP API spec
-│   ├── DB_HANDOFF.md           # Database schema
-│   ├── PLATFORM_CONNECTORS.md  # Selenium automation details
-│   ├── DEPLOYMENT.md           # Production setup
-│   └── RUNBOOK.md              # Commands & operations
-├── .env.example                # Template for local .env
-├── package.json                # Dependencies & scripts
-├── tsconfig.json               # TypeScript config
-└── next.config.ts              # Next.js config (API rewrite proxy)
+│   ├── app.ts                  # Express applikasiya setup (middleware, marşrutlar)
+│   ├── server.ts               # Daxil olma nöqtəsi (serveri + pg-boss başladır)
+│   ├── middleware/             # Autentifikasiya, xəta idarəçiliyi
+│   ├── routes/                 # API marşrutları (/api/auth, /api/listings, /api/publish, və s.)
+│   ├── services/               # Biznes məntiqləri (OTP, siyahılar, yayım, ödəniş)
+│   ├── connectors/             # Selenium platformu konnektorları (TapazConnector, LalafoConnector, və s.)
+│   ├── queue/                  # pg-boss setup + iş idarəçiləri (yayım, bərpa)
+│   ├── db/                     # Veritabanı konfigu, bağlantı hovuzu, sxem
+│   └── utils/                  # Köməkçilər (downloadImages, logging, və s.)
+├── docs/                       # Developer sənədləşdirmə
+│   ├── ARCHITECTURE.md         # Sistem dizaynı və məlumat axınları
+│   ├── KNOWN_ISSUES.md         # Xətalər, riskləri və TODO-lar
+│   ├── BACKEND_DEVELOPER_GUIDE.md  # Setup və üzərində işləmə
+│   ├── ENVIRONMENT.md          # Ətraf dəyişənləri
+│   ├── API_HANDOFF.md          # HTTP API spesifikasiyası
+│   ├── DB_HANDOFF.md           # Veritabanı sxemi
+│   ├── PLATFORM_CONNECTORS.md  # Selenium avtomasyonu təfərrüatları
+│   ├── DEPLOYMENT.md           # Produksiya setup
+│   └── RUNBOOK.md              # Əmrlər və əməliyyatlar
+├── .env.example                # Yerli .env üçün şablon
+├── package.json                # Asılılıqlar və skriptlər
+├── tsconfig.json               # TypeScript konfigu
+└── next.config.ts              # Next.js konfigu (API proxy yenidən yazma)
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Başlanğıc
 
-### Prerequisites
+### Tələblər
 
-- **Node.js** 18+ (LTS recommended)
-- **PostgreSQL** 12+ (local or remote)
-- **Google Chrome / Chromium** (for Selenium connectors; path via `CHROME_BIN` optional)
-- **Git** (for version control)
+- **Node.js** 18+ (LTS tövsiyə olunur)
+- **PostgreSQL** 12+ (yerli və ya uzaq)
+- **Google Chrome / Chromium** (Selenium konnektorları üçün; `CHROME_BIN` vasitəsilə yol isteğe bağlı)
+- **Git** (versiya nəzarəti üçün)
 
-### Local Setup (5 minutes)
+### Yerli Setup (5 dəqiqə)
 
-**1. Clone and install:**
+**1. Klonlayın və quraşdırın:**
 ```bash
 git clone https://github.com/ArazFlutter/salex.git
 cd salex
 npm install
 ```
 
-**2. Configure environment:**
+**2. Ətraf dəyişənləri konfigur edin:**
 ```bash
 cp .env.example .env
 ```
 
-Then edit `.env`:
+Sonra `.env` redaktə edin:
 ```bash
-# Required
+# Tələb olunan
 DATABASE_URL=postgres://postgres:password@localhost:5432/salex
 
-# Optional (defaults shown)
+# İsteğe bağlı (göstərilən parametrlər)
 PORT=4000
 NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
 APP_URL=http://localhost:3000
 ```
 
-**3. Initialize database:**
+**3. Veritabanını işə salın:**
 ```bash
 npm run db:bootstrap
 ```
 
-This creates all tables, indices, and pg-boss schema.
+Bu bütün cədvəlləri, indeksləri və pg-boss sxemini yaradır.
 
-**4. Start services (three terminals):**
+**4. Xidmətləri başladın (üç terminal):**
 
-**Terminal 1 — Backend API + embedded pg-boss:**
+**Terminal 1 — Backend API + yerləşdirilmiş pg-boss:**
 ```bash
 npm run server:dev
 ```
-Watches `src/` for changes. Runs on `http://localhost:4000`.
+`src/` dəyişiklikləri izləyir. `http://localhost:4000`-də çalışır.
 
-**Terminal 2 — Job worker (publish listings):**
+**Terminal 2 — İş işçisi (siyahıları yayımlamaq):**
 ```bash
 ENABLE_WORKER_IN_SERVER=false npm run worker:dev
 ```
-Optional if you're not testing job publishing. Processes publish jobs from queue.
+İsteğe bağlı iş yayımlamasını test etmədiyiniz halda. Sıradakı yayım işlərini emal edir.
 
 **Terminal 3 — Frontend:**
 ```bash
 npm run dev
 ```
-Runs on `http://localhost:3000`. Open in browser or Telegram Mini App preview.
+`http://localhost:3000`-də çalışır. Brauzerə açın və ya Telegram Mini App ön izləməsinə açın.
 
 ---
 
-## 🔗 Local Hosts
+## 🔗 Yerli Hostlar
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Frontend** | `http://localhost:3000` | Next.js app; Telegram Mini App runs here |
-| **Backend API** | `http://localhost:4000` | Express REST API; handles auth, listings, jobs |
-| **PostgreSQL** | From `DATABASE_URL` | App data + pg-boss job queues |
-| **Admin panel** | `http://localhost:4000/admin` | (if implemented) Job monitoring |
+| Xidmət | URL | Məqsəd |
+|--------|-----|---------|
+| **Frontend** | `http://localhost:3000` | Next.js applikasiyası; Telegram Mini App burada çalışır |
+| **Backend API** | `http://localhost:4000` | Express REST API; autentifikasiya, siyahılar, işləri idarə edir |
+| **PostgreSQL** | `DATABASE_URL`-dən | Applikasiya məlumatları + pg-boss iş sırası |
+| **Admin paneli** | `http://localhost:4000/admin` | (tətbiq olunarsa) İş monitorinqi |
 
-**Note:** Next.js automatically **rewrites** `/api/*` and `/uploads/*` from port 3000 to 4000. You can hit the API directly at `:4000` or through the Next.js proxy.
+**Qeyd:** Next.js avtomatik olaraq `/api/*` və `/uploads/*` 3000 portundan 4000 portuna **yenidən yazır**. API-yə birbaşa `:4000`-də və ya Next.js proxy vasitəsilə vura bilərsiniz.
 
 ---
 
-## 📋 Quick Commands
+## 📋 Sürətli Əmrlər
 
 ```bash
-npm run dev                    # Start all three services (server + worker + next)
-npm run server:dev             # API + embedded jobs
-npm run worker:dev             # Standalone worker
-npm run db:bootstrap           # Create tables
-npm run db:seed                # Insert test data
-npm run lint                   # Run ESLint
-npm run build                  # Build for production
-npm run start                  # Run production build
-npm run smoke:backend          # Test API endpoints
-npm run smoke:publish-connectors  # Test Selenium connectors
+npm run dev                    # Bütün üç xidmətini başlat (server + işçi + next)
+npm run server:dev             # API + yerləşdirilmiş işlər
+npm run worker:dev             # Müstəqil işçi
+npm run db:bootstrap           # Cədvəlləri yarat
+npm run db:seed                # Test məlumatını daxil et
+npm run lint                   # ESLint-i çalıştır
+npm run build                  # Produksiya üçün qurun
+npm run start                  # Produksiya qurmasını çalıştırın
+npm run smoke:backend          # API nöqtələrini test et
+npm run smoke:publish-connectors  # Selenium konnektorlarını test et
 ```
 
 ---
@@ -172,99 +172,99 @@ npm run smoke:publish-connectors  # Test Selenium connectors
 ## 🌐 Deployment
 
 ### Frontend (Vercel)
-- Auto-deploys on push to `main` branch
-- **Live URL:** `https://salex-next.vercel.app` (or your Vercel project)
-- Environment: `NEXT_PUBLIC_BACKEND_URL` points to Railway backend
+- `main` branşina push üzrə avtomatik deploy
+- **Live URL:** `https://salex-next.vercel.app` (və ya sizin Vercel layihə)
+- Ətraf dəyişən: `NEXT_PUBLIC_BACKEND_URL` Railway backend-ə işarə edir
 
 ### Backend (Railway)
-- Deploy via `git push` or Railway CLI
-- **Live URL:** `https://salex-api.railway.app` (or Railway project domain)
-- Environment: `DATABASE_URL` points to Railway PostgreSQL
-- Worker runs as separate dyno/service
+- Git push və ya Railway CLI vasitəsilə deploy
+- **Live URL:** `https://salex-api.railway.app` (və ya Railway layihə domeni)
+- Ətraf dəyişən: `DATABASE_URL` Railway PostgreSQL-ə işarə edir
+- İşçi ayrı dyno/xidmət olaraq çalışır
 
 ### Telegram Bot
-- **Bot Username:** `@YourSALexBot` (configure in `.env` → `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`)
-- Users interact via `/start` command in Telegram
-- Mini App loads from Vercel frontend
+- **Bot Username:** `@YourSALexBot` (`.env` → `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`-da konfigur edin)
+- İstifadəçilər Telegram-da `/start` əmri vasitəsilə əlaqə qururlar
+- Mini App Vercel frontend-dən yüklənir
 
 ---
 
-## 📚 Documentation
+## 📚 Sənədləşdirmə
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flows, component interactions | All developers |
-| [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | Critical bugs, risks, TODOs | All developers |
-| [docs/BACKEND_DEVELOPER_GUIDE.md](docs/BACKEND_DEVELOPER_GUIDE.md) | Onboarding for backend devs; what to build | Backend engineers |
-| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | All env variables explained | DevOps, all developers |
-| [docs/API_HANDOFF.md](docs/API_HANDOFF.md) | HTTP API routes, request/response spec | Frontend & backend devs |
-| [docs/DB_HANDOFF.md](docs/DB_HANDOFF.md) | Database schema, table relationships | Backend developers |
-| [docs/PLATFORM_CONNECTORS.md](docs/PLATFORM_CONNECTORS.md) | How Selenium automation works; per-platform quirks | Backend developers |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production checklist, Railway setup, SSL certs | DevOps engineers |
-| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Common operations (restart, logs, database migrations) | DevOps & on-call |
-
----
-
-## 🔐 Authentication (Current & Future)
-
-### Current: OTP + Global Session
-- User enters phone → receives SMS with 4-digit code
-- Backend stores code in `otp_sessions` table; sets `is_current = TRUE` on verify
-- **⚠️ Issues:** Unreliable SMS, plaintext code in logs, global session (not per-tab)
-
-### Future: Telegram `initData` + JWT
-- App runs inside Telegram → user already authenticated
-- Request includes `initData` signed by Telegram
-- Backend verifies signature → issues JWT token
-- **Benefits:** Reliable (no SMS), more secure, per-device sessions, better UX
-
-See [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) for details.
+| Sənəd | Məqsəd | Auditoriya |
+|-------|--------|-----------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Sistem dizaynı, məlumat axınları, komponent əlaqələri | Bütün developerləri |
+| [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | Kritik xətalar, riskləri, TODO-lar | Bütün developerləri |
+| [docs/BACKEND_DEVELOPER_GUIDE.md](docs/BACKEND_DEVELOPER_GUIDE.md) | Backend developerləri üçün onboarding; nə qurmaq | Backend mühəndisləri |
+| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Bütün ətraf dəyişənlər izahlı | DevOps, bütün developerləri |
+| [docs/API_HANDOFF.md](docs/API_HANDOFF.md) | HTTP API marşrutları, request/response spesifikasiyası | Frontend & backend developerləri |
+| [docs/DB_HANDOFF.md](docs/DB_HANDOFF.md) | Veritabanı sxemi, cədvəl əlaqələri | Backend developerləri |
+| [docs/PLATFORM_CONNECTORS.md](docs/PLATFORM_CONNECTORS.md) | Selenium avtomasyonu necə işləyir; platform spesifik təcrübələr | Backend developerləri |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Produksiya yoxlama siyahısı, Railway setup, SSL sertifikatları | DevOps mühəndisləri |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Ümumi əməliyyatlar (yenidən başlat, loglar, veritabanı miqrasiyaları) | DevOps & on-call |
 
 ---
 
-## 🛟 Troubleshooting
+## 🔐 Autentifikasiya (Cari və Gələcək)
 
-### "Cannot connect to PostgreSQL"
+### Cari: OTP + Qlobal Sesiya
+- İstifadəçi telefon daxil edir → SMS-də 4 rəqəmli kod alır
+- Backend kodu `otp_sessions` cədvəlinə saxlayır; `is_current = TRUE` təsdiqlənir
+- **⚠️ Problemlər:** Qeyri-etibarlı SMS, loqda açıq kod, qlobal sesiya (hər tabda deyil)
+
+### Gələcək: Telegram `initData` + JWT
+- Applikasiya Telegram-ın içində çalışır → istifadəçi artıq autentifikasiyalanıb
+- Sorğu Telegram tərəfindən imzalanan `initData` ehtiva edir
+- Backend imzanı yoxlayır → JWT token verir
+- **Faydaları:** Etibarlı (SMS yoxdur), daha təhlükəsiz, cihaz başına sesiası, daha yaxşı UX
+
+[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)-də detallar baxın.
+
+---
+
+## 🛟 Problemləşdirmə
+
+### "PostgreSQL-ə bağlana bilmədi"
 ```bash
-# Check DATABASE_URL in .env
-# Verify PostgreSQL is running
+# .env-də DATABASE_URL-ni yoxlayın
+# PostgreSQL-in çalışdığını yoxlayın
 psql $DATABASE_URL -c "SELECT version();"
 ```
 
-### "Port 4000 already in use"
+### "4000 portu artıq istifadə olunur"
 ```bash
-# Change PORT in .env or kill existing process
-lsof -i :4000  # Find process
-kill -9 <PID>  # Kill it
+# .env-də PORT-u dəyişin və ya mövcud prosesi öldürün
+lsof -i :4000  # Prosesi tap
+kill -9 <PID>  # Onu öldür
 ```
 
-### "Chrome not found" (Selenium error)
+### "Chrome tapılmadı" (Selenium xətası)
 ```bash
-# Install Chrome or set path
+# Chrome quraşdırın və ya yolu təyin edin
 export CHROME_BIN=/usr/bin/google-chrome
 npm run worker:dev
 ```
 
-### "Telegram Mini App won't load"
-- Check `NEXT_PUBLIC_BACKEND_URL` matches actual backend
-- Browser console (F12) should show no 401 errors on `/api/me`
-- Clear Telegram app cache and reload
+### "Telegram Mini App yüklənməyəcək"
+- `NEXT_PUBLIC_BACKEND_URL` faktiki backend ilə uyğun olduğunu yoxlayın
+- Brauzer konsolu (F12) `/api/me`-də 401 xətası göstərməməlidir
+- Telegram applikasiyası keşini təmizləyin və yenidən yükləyin
 
 ---
 
-## 📞 Support
+## 📞 Dəstək
 
-- **Issues:** GitHub Issues in this repo
-- **Questions:** See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for technical overview
-- **Getting started:** See [docs/BACKEND_DEVELOPER_GUIDE.md](docs/BACKEND_DEVELOPER_GUIDE.md)
-
----
-
-## 📄 License
-
-(Add your license here)
+- **Problemlər:** Bu depo-da GitHub Issues
+- **Suallar:** Texniki icmala baxmaq üçün [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 
+- **Başlanğıc:** [docs/BACKEND_DEVELOPER_GUIDE.md](docs/BACKEND_DEVELOPER_GUIDE.md) baxın
 
 ---
 
-**Last updated:** May 2026  
-**Maintainers:** SALex team
+## 📄 Lisenziya
+
+(Lisenziyalı buraya əlavə edin)
+
+---
+
+**Son Yeniləmə:** May 2026  
+**Saxlayanlar:** SALex komandası

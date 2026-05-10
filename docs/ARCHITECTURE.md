@@ -1,193 +1,193 @@
-# System Architecture — SALex
+# Sistem Arxitekturası — SALex
 
-Comprehensive guide to SALex's system design, data flows, and component interactions.
+SALex-in sistem dizaynı, məlumat axınları və komponent əlaqələrinə hərtərəfli bələdçi.
 
 ---
 
-## 1. Logical Architecture
+## 1. Məntiqi Arxitektura
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │                         TELEGRAM                                      │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │  Telegram Mini App (Next.js Frontend)                        │   │
-│  │  Browser: http://localhost:3000                             │   │
+│  │  Brauzer: http://localhost:3000                             │   │
 │  │  ┌────────────────────────────────────────────────────────┐ │   │
-│  │  │  • Login screen (OTP verification)                     │ │   │
-│  │  │  • Create listing (form, image upload)                │ │   │
-│  │  │  • Connect platforms (Selenium popup)                 │ │   │
-│  │  │  • Publish & track status (polling)                   │ │   │
+│  │  │  • Daxil olma ekranı (OTP təsdiqləməsi)                │ │   │
+│  │  │  • Siyahı yaratma (forma, şəkil yükləməsi)            │ │   │
+│  │  │  • Bazarları bağlama (Selenium popup)                 │ │   │
+│  │  │  • Yayımla və vəziyyəti izlə (polling)                │ │   │
 │  │  └────────────────────────────────────────────────────────┘ │   │
 │  └────────────────────────────────────────────────────────────────┘   │
 │         │                                                                │
 └─────────┼────────────────────────────────────────────────────────────┘
-          │ HTTP requests
-          │ (via Next.js rewrite proxy)
+          │ HTTP sorğuları
+          │ (Next.js proxy yenidən yazması vasitəsilə)
           ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                     EXPRESS BACKEND (Node.js)                        │
-│  Port: 4000 (configurable)                                           │
-│  Entry: src/server.ts                                                │
+│  Port: 4000 (dəyişdirilə bilinən)                                    │
+│  Daxil olma: src/server.ts                                           │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │  API Routes (src/routes/*.ts)                                │ │
+│  │  API Marşrutları (src/routes/*.ts)                           │ │
 │  │  • POST /api/auth/send-otp, /verify-otp                      │ │
-│  │  • GET /api/me (current user)                                │ │
+│  │  • GET /api/me (cari istifadəçi)                             │ │
 │  │  • POST /api/listings, GET /api/listings/:id                 │ │
 │  │  • POST /api/listings/upload-image                           │ │
 │  │  • POST /api/platforms/connect                               │ │
-│  │  • POST /api/publish/:listingId (creates jobs)               │ │
-│  │  • GET /api/publish/:id/status (job status)                  │ │
+│  │  • POST /api/publish/:listingId (işlər yaradır)              │ │
+│  │  • GET /api/publish/:id/status (iş vəziyyəti)                │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 │         │                                                              │
 │  ┌──────┴─────────────────────────────────────────────────────────┐ │
-│  │  pg-boss Job Queue (PostgreSQL-backed)                       │ │
+│  │  pg-boss İş Sırası (PostgreSQL-dən ehtiyat)                  │ │
 │  │  • QUEUE_PUBLISH_PLATFORM                                    │ │
 │  │  • QUEUE_RECOVER_PENDING_LINKS                               │ │
-│  │  • Scheduled recovery cron job                               │ │
+│  │  • Cədvəlləşdirilmiş bərpa cron işi                           │ │
 │  └──────┬─────────────────────────────────────────────────────────┘ │
 │         │                                                              │
 │  ┌──────▼─────────────────────────────────────────────────────────┐ │
-│  │  Job Handlers (src/queue/handlers/)                          │ │
-│  │  • handlePublishPlatform: Publishes to one marketplace       │ │
-│  │  • handleRecoverPendingLinks: Retries failed publishes       │ │
+│  │  İş İdarəçiləri (src/queue/handlers/)                        │ │
+│  │  • handlePublishPlatform: Bir bazara yayımla                 │ │
+│  │  • handleRecoverPendingLinks: Uğursuz yayımları yenidən cəhd et │
 │  └──────┬─────────────────────────────────────────────────────────┘ │
 │         │                                                              │
 │  ┌──────▼─────────────────────────────────────────────────────────┐ │
-│  │  Platform Connectors (src/connectors/)                       │ │
+│  │  Platform Konnektorları (src/connectors/)                    │ │
 │  │  • TapazConnector (Chrome + Selenium)                        │ │
 │  │  • LalafoConnector                                           │ │
 │  │  • AlanazConnector                                           │ │
 │  │  • LayloConnector                                            │ │
 │  │  • BirjacomConnector                                         │ │
 │  │                                                               │ │
-│  │  Each: login() → fillForm() → submit() → getUrl()            │ │
+│  │  Hər biri: login() → fillForm() → submit() → getUrl()        │ │
 │  └──────┬─────────────────────────────────────────────────────────┘ │
 └─────────┼────────────────────────────────────────────────────────────┘
-          │ Selenium automation
+          │ Selenium avtomasyonu
           ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     MARKETPLACE PLATFORMS                            │
+│                     BAZAR PLATFORMALARI                              │
 │  • Tap.az     (Chrome + Selenium headless)                           │
 │  • Lalafo     (Chrome + Selenium headless)                           │
-│  • Alan.az    (Chrome + Selenium headless) [Not yet implemented]    │
+│  • Alan.az    (Chrome + Selenium headless) [Hələ tətbiq olunmadı]   │
 │  • Laylo.az   (Chrome + Selenium headless)                           │
-│  • Birja.com  (Chrome + Selenium headless) [Not yet implemented]    │
+│  • Birja.com  (Chrome + Selenium headless) [Hələ tətbiq olunmadı]   │
 └──────────────────────────────────────────────────────────────────────┘
 
-          │ Database reads/writes
-          │ (same DATABASE_URL)
+          │ Veritabanı oxunuş/yazışları
+          │ (eyni DATABASE_URL)
           ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        POSTGRESQL                                    │
-│  Tables:                                                             │
+│  Cədvəllər:                                                          │
 │  • users: id, phone, full_name, account_type, active_plan          │
 │  • listings: id, user_id, title, price, city, category, images    │
 │  • otp_sessions: phone, code, is_current, verified_at              │
-│  • platform_connections: user_id, platform, access_token, etc.    │
+│  • platform_connections: user_id, platform, access_token, və s.   │
 │  • publish_jobs: id, user_id, listing_id, status, created_at      │
 │  • publish_job_platforms: job_id, platform, status, url           │
-│  • pgboss.*: Internal pg-boss queue schema                         │
+│  • pgboss.*: Daxili pg-boss sırası sxemi                           │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Component Breakdown
+## 2. Komponent Boşluğu
 
 ### 2.1 Frontend (Next.js)
 
-**File:** `app/page.tsx` (main Telegram Mini App)
+**Fayl:** `app/page.tsx` (əsas Telegram Mini App)
 
-**Screens:**
-- `StartScreen`: Welcome, "Create account" button
-- `LanguageScreen`: Choose language (Azerbaijani, Russian, English)
-- `RegistrationScreen`: Phone number input, OTP code verification
-- `RegistrationSuccessScreen`: "Start creating" button
-- `DashboardScreen`: View listings, create new, manage account
-- `CreateListingScreen`: Form for title, price, images, category, city, description
-- `ImageUploadScreen`: Upload & reorder images
-- `PlatformActivationScreen`: Choose which platforms to use
-- `PlatformConnectionScreen`: Connect marketplace accounts (Selenium popup)
-- `SharePlanScreen`: Select platforms for this listing
-- `ShareProgressScreen`: Shows publishing progress to each marketplace
-- `ListingSuccessScreen`: Confirmation screen
-- `MyListingsScreen`: List user's published listings
-- `StatisticsScreen`: View/edit analytics
-- `PackagesScreen`: Choose pricing plan (basic/premium/premiumPlus)
-- `ProfileScreen`: View profile, connected platforms, logout
+**Ekranlar:**
+- `StartScreen`: Salamlaşma, "Hesab yaratma" düyməsi
+- `LanguageScreen`: Dil seçin (Azərbaycanca, Rus, İngilis)
+- `RegistrationScreen`: Telefon nömrəsi daxil edin, OTP kodu təsdiqləsin
+- `RegistrationSuccessScreen`: "Yaratmağa başla" düyməsi
+- `DashboardScreen`: Siyahıları görün, yeni yaradın, hesabı idarə edin
+- `CreateListingScreen`: Başlıq, qiymət, şəkillər, kateqoriya, şəhər, təsvir forması
+- `ImageUploadScreen`: Şəkilləri yüklə və yenidən düzən
+- `PlatformActivationScreen`: Hansı bazarları istifadə etməyi seçin
+- `PlatformConnectionScreen`: Bazar hesablarını bağla (Selenium popup)
+- `SharePlanScreen`: Bu siyahı üçün bazarları seçin
+- `ShareProgressScreen`: Hər bazara yayım irəliləməsini göstərin
+- `ListingSuccessScreen`: Təsdiq ekranı
+- `MyListingsScreen`: İstifadəçinin yayımlanmış siyahılarını sıralay
+- `StatisticsScreen`: Analytics-i görün/redaktə edin
+- `PackagesScreen`: Qiymət planını seçin (basic/premium/premiumPlus)
+- `ProfileScreen`: Profili görün, bağlı bazarları, çıxış
 
-**Key Contexts:**
-- `LanguageContext`: Manages language selection, provides translation function
-- `TelegramMiniAppProvider`: Initializes Telegram Web App SDK; handles app lifecycle
+**Əsas Kontekstlər:**
+- `LanguageContext`: Dil seçimini idarə edir, tərcəmə funksiyasını sağlayır
+- `TelegramMiniAppProvider`: Telegram Web App SDK-nı işə salır; applikasiya həyat siklusunu idarə edir
 
-**State Management:**
-- Local React state in `app/page.tsx` (screen, listings, profile, draft)
-- localStorage for language preference
-- `localStorage.getItem('salex_client_user_id')` to bind user to current browser tab
+**Vəziyyət İdarəçiliyi:**
+- `app/page.tsx`-də yerli React vəziyyəti (ekran, siyahılar, profil, draft)
+- Dil seçimi üçün localStorage
+- `localStorage.getItem('salex_client_user_id')` istifadəçini cari brauzer tabbına bağlamaq üçün
 
 ---
 
 ### 2.2 Backend API (Express)
 
-**Entry:** `src/server.ts`
+**Daxil olma:** `src/server.ts`
 
-**Steps:**
-1. Load environment variables from `.env`
-2. Verify PostgreSQL connection
-3. Start pg-boss (job queue)
-4. Register job handlers (`registerHandlers`)
-5. Mount Express app on `PORT` (default 4000)
+**Addımlar:**
+1. `.env`-dən ətraf dəyişənləri yüklə
+2. PostgreSQL bağlantısını yoxla
+3. pg-boss başlat (iş sırası)
+4. İş idarəçilərini qeydə al (`registerHandlers`)
+5. Express applikasiyasını `PORT`-da (default 4000) bağla
 
-**Routes (src/routes/):**
-- `auth.ts`: OTP send/verify, logout
-- `listings.ts`: CRUD operations, image upload
-- `publish.ts`: Create publish jobs, get status
-- `platforms.ts`: Connect marketplace accounts
-- `me.ts`: Get current user profile
+**Marşrutlar (src/routes/):**
+- `auth.ts`: OTP göndər/təsdiqə al, çıxış
+- `listings.ts`: CRUD əməliyyatları, şəkil yüklə
+- `publish.ts`: Yayım işlərini yaradın, vəziyyəti alın
+- `platforms.ts`: Bazar hesablarını bağla
+- `me.ts`: Cari istifadəçi profilini al
 
-**Services (src/services/):**
-- `otpService`: Generate, send, verify OTP codes
-- `userService`: Get/create users, manage sessions
-- `listingService`: Validate, create, fetch listings
-- `publishService`: Create jobs, coordinate publishing
-- `paymentService`: Handle premium package payments
+**Xidmətlər (src/services/):**
+- `otpService`: OTP kodlarını yaratma, göndər, təsdiqə
+- `userService`: İstifadəçiləri al/yarat, sesiayaları idarə et
+- `listingService`: Siyahıları doğrula, yarat, al
+- `publishService`: İşlər yaratma, yayımlamağı əlaqələndir
+- `paymentService`: Premium paket ödənişlərini idarə et
 
 **Middleware (src/middleware/):**
-- `authenticate`: Check current user session
-- `errorHandler`: Catch AppError and return JSON
+- `authenticate`: Cari istifadəçi sesiyasını yoxla
+- `errorHandler`: AppError tutun və JSON qaytarın
 
-**Database Access (src/db/):**
-- `pool.ts`: PostgreSQL connection pool
-- `schema.sql`: Table definitions
-- Services query using `pool.query()` with parameterized queries
-
----
-
-### 2.3 Job Queue (pg-boss)
-
-**Library:** pg-boss runs in same PostgreSQL instance
-
-**Queues:**
-1. `QUEUE_PUBLISH_PLATFORM` — One job per platform per listing
-   - Created by `POST /api/publish/:listingId`
-   - Handler: `handlePublishPlatform`
-   - Payload: `{ listingId, platform, userId }`
-
-2. `QUEUE_RECOVER_PENDING_LINKS` — Recovery job
-   - Runs on schedule: `RECOVERY_SCHEDULE_CRON` (e.g., `*/10 * * * *` = every 10 min)
-   - Handler: `handleRecoverPendingLinks`
-   - Retries failed publishes up to `MAX_RECOVERY_RETRIES`
-
-**Handler Registration:**
-- Called in `src/server.ts` (API runs handlers)
-- Also called in `src/queue/worker.ts` (standalone worker process)
-- **⚠️ Design note:** Avoid running both in production without intent (may double-process jobs)
+**Veritabanı Girişi (src/db/):**
+- `pool.ts`: PostgreSQL bağlantı hovuzu
+- `schema.sql`: Cədvəl tərifləri
+- Xidmətlər `pool.query()` istifadə edərək parametrləşdirilmiş sorğularla sorğu göndərir
 
 ---
 
-### 2.4 Selenium Platform Connectors
+### 2.3 İş Sırası (pg-boss)
 
-**Registry:** `src/connectors/index.ts`
+**Kitabxana:** pg-boss eyni PostgreSQL misjəsində çalışır
+
+**Sıralar:**
+1. `QUEUE_PUBLISH_PLATFORM` — Siyahı başına platform başına bir iş
+   - Yaradıldı: `POST /api/publish/:listingId`
+   - İdarəçi: `handlePublishPlatform`
+   - Yük: `{ listingId, platform, userId }`
+
+2. `QUEUE_RECOVER_PENDING_LINKS` — Bərpa işi
+   - Cədvəldə çalışır: `RECOVERY_SCHEDULE_CRON` (məs., `*/10 * * * *` = hər 10 dəq)
+   - İdarəçi: `handleRecoverPendingLinks`
+   - Uğursuz yayımlamaları `MAX_RECOVERY_RETRIES` sayıncadək yenidən cəhd et
+
+**İdarəçi Qeydiyyatı:**
+- `src/server.ts`-də çağırılır (API idarəçiləri çalıştırır)
+- `src/queue/worker.ts`-də də çağırılır (müstəqil işçi prosesi)
+- **⚠️ Dizayn qeydləri:** Produksiyada hər ikisini niyyətləndirilmiş olmasa çalıştırmakdan çəkinən (işləri iki dəfə emal etmə riski)
+
+---
+
+### 2.4 Selenium Platform Konnektorları
+
+**Reyestr:** `src/connectors/index.ts`
 
 ```typescript
 const connectors: Map<PlatformId, PlatformConnector> = new Map([
@@ -199,7 +199,7 @@ const connectors: Map<PlatformId, PlatformConnector> = new Map([
 ]);
 ```
 
-**Interface (baseConnector.ts):**
+**İnterfeys (baseConnector.ts):**
 ```typescript
 interface PlatformConnector {
   publishListing(listing: NormalizedListing): Promise<PublishResult>;
@@ -208,37 +208,37 @@ interface PlatformConnector {
 }
 ```
 
-**Flow (per connector):**
-1. **Login:** Build Chrome options, start headless browser, fill login form, verify OTP
-2. **Navigate:** Go to listing creation page
-3. **Fill Form:** Map standardized listing data to platform-specific fields
-4. **Submit:** Click create/publish button
-5. **Get URL:** Extract listing URL from browser or API response
-6. **Cleanup:** Close browser, clear cookies
+**Axın (hər konnektord):**
+1. **Daxil olmaq:** Chrome seçənlərini qur, headless brauzer başlat, daxil olma formasını doldur, OTP-ni təsdiqə
+2. **Naviqasiya:** Siyahı yaratma səhifəsinə keç
+3. **Form Doldur:** Standartlaşdırılmış siyahı məlumatını platforma spesifik sahələrə xəritələ
+4. **Təqdim Et:** Yaratma/yayım düyməsinə klik et
+5. **URL Alın:** Siyahı URL-ni brauzerdən və ya API cavabından çıxarın
+6. **Təmizləmə:** Brauzer qapat, cookies təmizlə
 
-**Platform-Specific Details:**
-- **Tap.az:** Uses Chrome DevTools Protocol (CDP) to intercept/override network requests; OTP sent via file or console
-- **Lalafo:** Similar login flow; different form structure
-- **Alan.az, Laylo.az, Birja.com:** Connector skeletons exist; not fully tested
+**Platforma Spesifik Təfərrüatlar:**
+- **Tap.az:** Şəbəkə sorğularını intercept/override etmək üçün Chrome DevTools Protocol (CDP) istifadə edir; OTP fayl və ya konsol vasitəsilə göndərilir
+- **Lalafo:** Oxşar daxil olma axını; fərqli forma struktur
+- **Alan.az, Laylo.az, Birja.com:** Konnektoru skeletləri mövcud; tam sınaqdan keçməyib
 
 ---
 
-### 2.5 Database Schema
+### 2.5 Veritabanı Sxemi
 
-**Core Tables:**
+**Əsas Cədvəllər:**
 
 ```sql
--- Users
+-- İstifadəçilər
 CREATE TABLE users (
   id UUID PRIMARY KEY,
   phone TEXT UNIQUE,
   full_name TEXT,
-  account_type TEXT, -- 'individual' or 'business'
+  account_type TEXT, -- 'individual' və ya 'business'
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 
--- OTP Sessions (auth)
+-- OTP Sesilaşdırma (autentifikasiya)
 CREATE TABLE otp_sessions (
   id UUID PRIMARY KEY,
   phone TEXT,
@@ -250,7 +250,7 @@ CREATE TABLE otp_sessions (
   attempt_count INT DEFAULT 0
 );
 
--- Listings
+-- Siyahılar
 CREATE TABLE listings (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
@@ -259,24 +259,24 @@ CREATE TABLE listings (
   city TEXT,
   category TEXT,
   description TEXT,
-  images JSONB, -- Array of URLs
+  images JSONB, -- URL-lərin massividir
   status TEXT, -- 'draft', 'active', 'sold', 'archived'
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 
--- Platform Connections (user's marketplace accounts)
+-- Platform Bağlantıları (istifadəçinin bazar hesabları)
 CREATE TABLE platform_connections (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
-  platform TEXT, -- 'tapaz', 'lalafo', etc.
+  platform TEXT, -- 'tapaz', 'lalafo' və s.
   access_token TEXT,
   refresh_token TEXT,
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 
--- Publish Jobs (tracks overall job)
+-- Yayım İşləri (ümumi işi izlə)
 CREATE TABLE publish_jobs (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
@@ -286,197 +286,197 @@ CREATE TABLE publish_jobs (
   updated_at TIMESTAMP
 );
 
--- Publish Job Platforms (per-platform result)
+-- Yayım İş Platformaları (hər-platform nəticə)
 CREATE TABLE publish_job_platforms (
   id UUID PRIMARY KEY,
   job_id UUID REFERENCES publish_jobs(id),
   platform TEXT,
   status TEXT, -- 'pending', 'completed', 'failed'
-  url TEXT, -- Published listing URL
+  url TEXT, -- Yayımlanmış siyahı URL-i
   error TEXT,
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 
--- pgboss.* (internal queue schema, auto-created by pg-boss)
+-- pgboss.* (daxili sırası sxemi, pg-boss tərəfindən avtomatik yaradılır)
 ```
 
 ---
 
-## 3. Authentication Flow
+## 3. Autentifikasiya Axını
 
-### Current: OTP + Global Session
+### Cari: OTP + Qlobal Sesiya
 
-**Request → Response:**
-1. Browser: `POST /api/auth/send-otp { phone: "+994501234567" }`
-   - Backend: Creates `otp_sessions` row, logs code to console
-   - Response: `{ expiresAt: timestamp }`
+**Sorğu → Cavab:**
+1. Brauzer: `POST /api/auth/send-otp { phone: "+994501234567" }`
+   - Backend: `otp_sessions` sırasını yaradır, kodu konsola yazır
+   - Cavab: `{ expiresAt: timestamp }`
 
-2. Backend (server logs): Outputs code like `[17:30] OTP code: 1234`
+2. Backend (server loqları): Kodu çıxarır `[17:30] OTP code: 1234` kimi
 
-3. Browser: `POST /api/auth/verify-otp { phone, code: "1234" }`
-   - Backend: Finds latest `otp_sessions` row for phone, verifies code
-   - On success: Calls `getOrCreateUser()`, sets `is_current = TRUE` on session, clears other `is_current` rows
-   - Response: `{ user: { id, phone, fullName, accountType, activePlan } }`
+3. Brauzer: `POST /api/auth/verify-otp { phone, code: "1234" }`
+   - Backend: Telefon üçün ən son `otp_sessions` sırasını tapır, kodu yoxlayır
+   - Uğurda: `getOrCreateUser()` çağırır, sesiada `is_current = TRUE` qəbul edir, digər `is_current` sıraları təmizləyir
+   - Cavab: `{ user: { id, phone, fullName, accountType, activePlan } }`
 
-4. Subsequent requests: Backend calls `getCurrentUser()` which:
-   - Queries: `SELECT users.* FROM users JOIN otp_sessions ON is_current = TRUE WHERE verified_at IS NOT NULL LIMIT 1`
-   - If found: User is authenticated
-   - If not found: Return 401 Unauthorized
+4. Sonrakı sorğular: Backend `getCurrentUser()` çağırır:
+   - Sorğu: `SELECT users.* FROM users JOIN otp_sessions ON is_current = TRUE WHERE verified_at IS NOT NULL LIMIT 1`
+   - Tapılsa: İstifadəçi autentifikasiyalanıb
+   - Tapılmasa: 401 Unauthorized qaytarma
 
-**Logout:**
-- Browser: `POST /api/auth/logout`
-- Backend: Sets `is_current = FALSE` on all `otp_sessions` rows
-- Effect: `getCurrentUser()` will fail for all tabs/browsers
+**Çıxış:**
+- Brauzer: `POST /api/auth/logout`
+- Backend: Bütün `otp_sessions` sıralarda `is_current = FALSE` qəbul et
+- Effekt: `getCurrentUser()` bütün tablar/brauzerlərdə uğursuz olacaq
 
-**Issues:**
-- ❌ OTP sent via SMS (unreliable, needs integration)
-- ❌ Code logged in plaintext (security risk)
-- ❌ Global session (not per-device; logout affects all tabs)
-- ❌ No JWT; session state only in DB
+**Problemlər:**
+- ❌ OTP SMS vasitəsilə göndərilir (qeyri-etibarlı, inteqrasiya lazımdır)
+- ❌ Kod açıq şəkildə yazılır (təhlükəsizlik riski)
+- ❌ Qlobal sesiya (cihaz başına deyil; çıxış bütün tabları təsir edir)
+- ❌ JWT yoxdur; sesiya vəziyyəti yalnız DB-də
 
-### Future: Telegram initData + JWT
+### Gələcək: Telegram initData + JWT
 
-**Why:** App runs inside Telegram; user is already authenticated there.
+**Niyə:** Applikasiya Telegram-ın içində çalışır; istifadəçi artıq orada autentifikasiyalanıb.
 
-**Flow:**
-1. Telegram Mini App sends `window.Telegram.WebApp.initData` (signed by Telegram)
-2. Browser: `POST /api/auth/telegram { initData: "..." }`
-3. Backend: Verifies signature using Telegram bot token
-4. On success: Issues JWT (access + refresh tokens)
-5. Subsequent requests: Include `Authorization: Bearer <JWT>`
-6. Benefits: No SMS, stateless (no DB session lookup), per-device tokens
+**Axın:**
+1. Telegram Mini App `window.Telegram.WebApp.initData` (Telegram tərəfindən imzalanan) göndərir
+2. Brauzer: `POST /api/auth/telegram { initData: "..." }`
+3. Backend: Telegram bot token istifadə edərək imzanı yoxlayır
+4. Uğurda: JWT verir (access + refresh tokens)
+5. Sonrakı sorğular: `Authorization: Bearer <JWT>` daxil et
+6. Faydaları: SMS yoxdur, stateless (DB sesiya lookupa yoxdur), cihaz başına tokens
 
-**Status:** Not yet implemented. See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
+**Vəziyyət:** Hələ tətbiq olunmadı. [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) baxın.
 
 ---
 
-## 4. Publish Flow
+## 4. Yayım Axını
 
-**User perspective:**
-1. User creates listing, selects platforms, clicks "Publish"
-2. Page shows "Publishing..." with platform progress bars
-3. Each platform goes: Pending → Publishing → Complete/Failed
-4. User sees list of marketplace URLs
+**İstifadəçi Perspektivi:**
+1. İstifadəçi siyahı yaradır, bazarları seçir, "Yayımla" klikidir
+2. Səhifə "Yayımlanır..." göstərir bazarların irəliləmə çubuqları ilə
+3. Hər bazar: Gözləmə → Yayımlanır → Tamamlandı/Uğursuz
+4. İstifadəçi bazar URL-lərinin siyahısını görür
 
-**Backend flow:**
+**Backend axını:**
 
 ```
 POST /api/publish/:listingId
   ↓
 publishService.createPublishJob()
-  ├─ Insert publish_jobs (status='processing')
-  ├─ Insert publish_job_platforms rows (one per platform)
-  └─ For each platform:
+  ├─ publish_jobs daxil et (status='processing')
+  ├─ publish_job_platforms sıraları daxil et (platform başına bir)
+  └─ Hər bazar üçün:
      └─ boss.send(QUEUE_PUBLISH_PLATFORM, { listingId, platform, userId })
   ↓
-Response: { success, job: { id, status, platforms } }
+Cavab: { success, job: { id, status, platforms } }
   ↓
-Frontend polls: GET /api/publish/:jobId/status
-  ├─ Returns: { job, platforms: [ { name, status, url?, error? } ] }
-  └─ Updates UI every 1-2 seconds
+Frontend polling: GET /api/publish/:jobId/status
+  ├─ Cavab: { job, platforms: [ { name, status, url?, error? } ] }
+  └─ UI-ni hər 1-2 saniyəyə yenilə
 
-[Background] Queue handler: handlePublishPlatform
-  ├─ Load listing from DB
-  ├─ Validate listing data
-  ├─ Map to platform-specific payload
-  ├─ Start Chrome + Selenium
+[Arxa Plan] Sırası idarəçi: handlePublishPlatform
+  ├─ DB-dən siyahı yüklə
+  ├─ Siyahı məlumatını doğrula
+  ├─ Platforma spesifik yükə xəritələ
+  ├─ Chrome + Selenium başlat
   ├─ connector.publishListing()
-  │   └─ Login → Fill form → Submit → Get URL
-  ├─ Update publish_job_platforms row (status='completed', url='...')
-  └─ Call finishJob() if all platforms done
-       └─ Update publish_jobs (status='completed'/'failed')
+  │   └─ Daxil ol → Form doldur → Təqdim et → URL al
+  ├─ publish_job_platforms sırasını yenilə (status='completed', url='...')
+  └─ finishJob() çağırırsa bütün bazarlar tamamlandı
+       └─ publish_jobs yəniləyir (status='completed'/'failed')
 
-[If failure] Recovery job runs every 10 minutes
-  ├─ Query failed publish_job_platforms
-  ├─ Retry up to MAX_RECOVERY_RETRIES times
-  └─ Re-enqueue failed jobs
+[Uğursuzluq halında] Bərpa işi hər 10 dəqiqədə çalışır
+  ├─ Uğursuz publish_job_platforms-ı sorğula
+  ├─ MAX_RECOVERY_RETRIES sayıncadək yenidən cəhd et
+  └─ Uğursuz işləri yenidən sırala
 ```
 
 ---
 
-## 5. Image Upload & Storage
+## 5. Şəkil Yükləməsi və Saxlama
 
-**Flow:**
+**Axın:**
 
 ```
-Frontend: POST /api/listings/upload-image (multipart form-data, field: 'image')
+Frontend: POST /api/listings/upload-image (multipart form-data, sahə: 'image')
   ↓
 Backend (Express + Multer):
-  ├─ Validate file is image (MIME type)
-  ├─ Limit size (8 MB)
-  ├─ Write to uploads/ directory
-  └─ Generate unique filename
+  ├─ Faylın şəkil olduğunu doğrula (MIME tipi)
+  ├─ Ölçüyü məhdudlaştır (8 MB)
+  ├─ uploads/ direktoriyasına yaz
+  └─ Unikal faylı adını yaratma
 
-Response: { success: true, url: "/uploads/abc123.jpg" }
+Cavab: { success: true, url: "/uploads/abc123.jpg" }
   ↓
-Frontend: Stores URL in listing.images array
+Frontend: URL-i siyahı.images massivinə saxlayır
 
-When publishing:
-  ├─ Worker loads listing with images: [ "/uploads/abc123.jpg", ... ]
-  ├─ If relative URL: Resolve using PUBLIC_API_ORIGIN
-  │   e.g., "http://localhost:4000/uploads/abc123.jpg"
-  ├─ Download image to temp directory
-  └─ Upload to platform using Selenium
+Yayımlanarkən:
+  ├─ İşçi siyahı şəkillərlə yüklə: [ "/uploads/abc123.jpg", ... ]
+  ├─ Nisbi URL olarsa: PUBLIC_API_ORIGIN istifadə edərək həll et
+  │   məs., "http://localhost:4000/uploads/abc123.jpg"
+  ├─ Şəkli temp direktoriyaya endir
+  └─ Platforma Selenium istifadə edərək yüklə
 ```
 
-**Storage:**
-- Development: `uploads/` directory in repo (not in git)
-- Production: Railway persistent volume or external storage (S3, etc.)
+**Saxlama:**
+- İnkişaf: `uploads/` repo-da direktoriya (git-də yoxdur)
+- Produksiya: Railway davamlı volume və ya xarici saxlama (S3, və s.)
 
 ---
 
-## 6. Data Flow: Marketplace Platform Connection
+## 6. Məlumat Axını: Bazar Platforması Bağlantısı
 
-**User connects marketplace account (e.g., Tap.az):**
+**İstifadəçi bazar hesabı bağlayır (məs., Tap.az):**
 
 ```
-Frontend: Initiates Selenium popup
+Frontend: Selenium popup başlat
   POST /api/platforms/connect
-  ├─ Body: { platform: 'tapaz' }
-  └─ Backend: Starts Chrome, navigates to tap.az, opens DevTools
+  ├─ Gövdə: { platform: 'tapaz' }
+  └─ Backend: Chrome başlat, tap.az-ə keç, DevTools aç
     
-User (in popup): Enters phone, receives OTP, enters code
-  ├─ Selenium detects login success (URL change or DOM marker)
-  ├─ CDP intercepts login POST request
-  └─ Extracts auth token/cookie from response
+İstifadəçi (popup-da): Telefon daxil et, OTP al, kodu daxil et
+  ├─ Selenium daxil olma uğurunu aşkar et (URL dəyişikliyi və ya DOM marker)
+  ├─ CDP daxil olma POST sorğusunu intercept et
+  └─ Cavabdan auth token/cookie çıxar
 
-Backend stores in platform_connections:
+Backend platform_connections-a saxlayır:
   ├─ platform: 'tapaz'
-  ├─ access_token: 'token_from_login'
-  ├─ refresh_token: (if supported)
-  └─ expires_at: (calculated)
+  ├─ access_token: 'girişdən token'
+  ├─ refresh_token: (dəstəklənirsə)
+  └─ expires_at: (hesablanmış)
 
-Response to frontend: { success: true, platform: 'tapaz' }
+Frontend-ə cavab: { success: true, platform: 'tapaz' }
   ↓
-Frontend: Shows "Tap.az — Connected ✓"
+Frontend: "Tap.az — Bağlandı ✓" göstərir
 
-Later, when publishing:
-  ├─ Selenium retrieves access_token from platform_connections
-  ├─ Reuses token to avoid re-login
-  └─ Publishes listing faster
+Daha sonra, yayımlanarkən:
+  ├─ Selenium platform_connections-dən access_token alır
+  ├─ Token yenidən daxil olmaqdan çekinir
+  └─ Siyahı daha sürətli yayımlanır
 ```
 
-**Status:** Partially implemented. Tap.az and Lalafo have login flows. Alan.az, Laylo.az, Birja.com are stubs.
+**Vəziyyət:** Qismən tətbiq olunmuş. Tap.az və Lalafo daxil olma axınlarına sahibdir. Alan.az, Laylo.az, Birja.com əsaslı skeletlərdir.
 
 ---
 
-## 7. Deployment Architecture
+## 7. Deployment Arxitekturası
 
 ### Frontend (Vercel)
 
 ```
 GitHub repo → Vercel webhook
   ↓
-On push to main:
-  ├─ Install dependencies
-  ├─ Build Next.js (next build)
-  ├─ Deploy to Vercel CDN
-  └─ Assign URL: https://salex-next.vercel.app
+Main-ə push-da:
+  ├─ Asılılıqları quraşdır
+  ├─ Next.js quru (next build)
+  ├─ Vercel CDN-ə deploy et
+  └─ URL təyin et: https://salex-next.vercel.app
 
-Environment variables:
+Ətraf dəyişənlər:
   ├─ NEXT_PUBLIC_BACKEND_URL=https://salex-api.railway.app
-  └─ (client-side; accessible in browser)
+  └─ (klient tərəfdən; brauzerə əlçatan)
 ```
 
 ### Backend (Railway)
@@ -484,87 +484,87 @@ Environment variables:
 ```
 GitHub repo → Railway webhook
   ↓
-On push to main (or manual deploy):
-  ├─ Install dependencies (npm install)
-  ├─ Build (tsc)
-  ├─ Start services (npm run server:dev or npm start)
+Main-ə push-da (və ya manual deploy):
+  ├─ Asılılıqları quraşdır (npm install)
+  ├─ Qur (tsc)
+  ├─ Xidmətləri başlat (npm run server:dev və ya npm start)
   │   ├─ Express API
-  │   └─ pg-boss (embedded or via worker service)
-  └─ Assign URL: https://salex-api.railway.app
+  │   └─ pg-boss (yerləşdirilmiş və ya işçi xidməti vasitəsilə)
+  └─ URL təyin et: https://salex-api.railway.app
 
-Environment variables:
+Ətraf dəyişənlər:
   ├─ DATABASE_URL=postgres://...@railway.db....:5432/salex
-  ├─ PORT=8080 (Railway assigns)
+  ├─ PORT=8080 (Railway təyin edir)
   ├─ NODE_ENV=production
-  ├─ All platform connector env vars (LOGIN_PHONE, OTP_FILE, etc.)
-  └─ (private; not accessible from browser)
+  ├─ Bütün platform konnektoru ətraf dəyişənləri (LOGIN_PHONE, OTP_FILE, və s.)
+  └─ (xüsusi; brauzerdən əlçatmayan)
 
-Worker Service (separate Railway service):
-  ├─ Same repo, same env variables
-  ├─ Command: ENABLE_WORKER_IN_SERVER=false npm run worker:dev
-  └─ Processes publish jobs async
+İşçi Xidməti (ayrı Railway xidməti):
+  ├─ Eyni repo, eyni ətraf dəyişənlər
+  ├─ Əmr: ENABLE_WORKER_IN_SERVER=false npm run worker:dev
+  └─ Yayım işlərini emal et async
 ```
 
-### Database (Railway PostgreSQL)
+### Veritabanı (Railway PostgreSQL)
 
 ```
-Railway PostgreSQL managed service
-  ├─ Automatic backups
-  ├─ Connection pooling via PgBouncer (optional)
-  └─ DATABASE_URL shared between API and worker services
+Railway PostgreSQL idarə olunan xidməti
+  ├─ Avtomatik ehtiyatlıqlar
+  ├─ Bağlantı hovuzlaması PgBouncer vasitəsilə (isteğe bağlı)
+  └─ DATABASE_URL API və işçi xidmətləri arasında paylaşılır
 ```
 
 ---
 
-## 8. Key Files & Responsibilities
+## 8. Əsas Fayllar və Məsuliyyətlər
 
-| File / Directory | Purpose |
+| Fayl / Direktoriya | Məqsəd |
 |------------------|---------|
-| `app/page.tsx` | Main Telegram Mini App; screen state, navigation, UI logic |
-| `src/server.ts` | Backend entry point; starts Express, pg-boss, handlers |
-| `src/app.ts` | Express app setup; routes, middleware, error handler |
-| `src/routes/*.ts` | API endpoint handlers (auth, listings, publish, etc.) |
-| `src/services/*.ts` | Business logic (OTP, user, listing, publish, payment) |
-| `src/connectors/*.ts` | Selenium automation for each marketplace |
-| `src/queue/handlers/*.ts` | Job handlers (publish, recover) |
-| `src/db/schema.sql` | Database table definitions |
-| `src/db/pool.ts` | PostgreSQL connection pool |
-| `next.config.ts` | Next.js config; rewrite `/api/*` to backend |
-| `.env.example` | Template for environment variables |
-| `docs/ARCHITECTURE.md` | This file |
-| `docs/KNOWN_ISSUES.md` | Bugs and TODOs |
-| `docs/BACKEND_DEVELOPER_GUIDE.md` | Onboarding for backend devs |
+| `app/page.tsx` | Əsas Telegram Mini App; ekran vəziyyəti, naviqasiya, UI məntiqləsi |
+| `src/server.ts` | Backend daxıl olma nöqtəsi; Express, pg-boss, idarəçiləri başlatma |
+| `src/app.ts` | Express applikasiya setup; marşrutlar, middleware, xəta idarəçi |
+| `src/routes/*.ts` | API nöqtə idarəçiləri (auth, siyahılar, yayım, və s.) |
+| `src/services/*.ts` | Biznes məntiqləsi (OTP, istifadəçi, siyahı, yayım, ödəniş) |
+| `src/connectors/*.ts` | Hər bazar üçün Selenium avtomasyonu |
+| `src/queue/handlers/*.ts` | İş idarəçiləri (yayım, bərpa) |
+| `src/db/schema.sql` | Cədvəl tərifləri |
+| `src/db/pool.ts` | PostgreSQL bağlantı hovuzu |
+| `next.config.ts` | Next.js konfigu; `/api/*` backend-ə yenidən yazma |
+| `.env.example` | Ətraf dəyişənləri şablonu |
+| `docs/ARCHITECTURE.md` | Bu fayl |
+| `docs/KNOWN_ISSUES.md` | Xətalar və TODO-lar |
+| `docs/BACKEND_DEVELOPER_GUIDE.md` | Backend developerləri üçün onboarding |
 
 ---
 
-## 9. Deployment Checklist
+## 9. Deployment Yoxlama Siyahısı
 
-- [ ] Environment variables set on Vercel (frontend) and Railway (backend)
-- [ ] Database migrations applied (`npm run db:bootstrap`)
-- [ ] Telegram bot created; bot token stored in Railway env
-- [ ] Chrome/Chromium installed on Railway (or use headless option)
-- [ ] SSL certificates (auto-provisioned by Vercel & Railway)
-- [ ] Webhook configured for auto-deploy on git push
-- [ ] Error logging set up (Sentry, LogRocket, etc.)
-- [ ] Monitoring/alerting configured (uptime, job failures, etc.)
-- [ ] Backup strategy for PostgreSQL (Railway handles, verify)
-
----
-
-## 10. Glossary
-
-| Term | Definition |
-|------|-----------|
-| **Mini App** | Telegram application that runs inside Telegram; loads web interface from URL |
-| **OTP** | One-Time Password (e.g., 4-digit SMS code) |
-| **Selenium** | WebDriver automation library; controls headless Chrome |
-| **Connector** | Selenium script that automates a marketplace (e.g., Tap.az) |
-| **pg-boss** | PostgreSQL-backed job queue; works without Redis |
-| **Queue** | FIFO job list; handlers consume jobs asynchronously |
-| **Publish Job** | Task to post a listing to all connected platforms |
-| **Platform Connection** | Stored marketplace auth (token, cookie, etc.) for a user |
-| **DevTools Protocol (CDP)** | Chrome remote debugging API; intercepts network, modifies requests |
+- [ ] Ətraf dəyişənlər Vercel (frontend) və Railway (backend) üzərində təyin edilmiş
+- [ ] Veritabanı miqrasiyaları tətbiq olunmuş (`npm run db:bootstrap`)
+- [ ] Telegram bot yaradılmış; bot token Railway ətraf dəyişənində saxlanılmış
+- [ ] Chrome/Chromium Railway-ə quraşdırılmış (və ya headless seçəni istifadə et)
+- [ ] SSL sertifikatları (Vercel & Railway tərəfindən avtomatik təmin olunur)
+- [ ] Webhook git push-a avtomatik deploy üçün konfigur olunmuş
+- [ ] Xəta loqlaşdırma setup (Sentry, LogRocket, və s.)
+- [ ] Monitorinq/xəbərdarlıq konfigur olunmuş (uptime, iş uğursuzluqları, və s.)
+- [ ] PostgreSQL üçün ehtiyat strategiyası (Railway idarə edir, yoxla)
 
 ---
 
-**Last updated:** May 2026
+## 10. Sözlük
+
+| Termin | Tərif |
+|--------|--------|
+| **Mini App** | Telegram-ın içində çalışan Telegram applikasiyası; URL-dən veb interfeys yüklə |
+| **OTP** | Birdəfəlik Parol (məs., SMS-də 4 rəqəmli kod) |
+| **Selenium** | WebDriver avtomasyonu kitabxanası; headless Chrome-u kontrolluya |
+| **Konnektoru** | Bazarı (məs., Tap.az) avtomatlaşdıran Selenium skripti |
+| **pg-boss** | PostgreSQL-dən ehtiyat iş sırası; Redis lazım deyil |
+| **Sırası** | FIFO iş siyahısı; idarəçilər işləri emal edə asinkron |
+| **Yayım İşi** | Siyahıyı bütün bağlı bazarlara poslamaq üçün tapşırıq |
+| **Platform Bağlantısı** | Saxlanmış bazar autentifikasiyası (token, cookie, və s.) istifadəçi üçün |
+| **DevTools Protokolu (CDP)** | Chrome uzaq debugging API; şəbəkəni intercept et, sorğuları dəyişdir |
+
+---
+
+**Son Yeniləmə:** May 2026
